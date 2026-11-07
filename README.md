@@ -123,6 +123,27 @@ pip install -r ingester/requirements.txt
 python -m unittest discover -s ingester/tests
 ```
 
+## Releases
+
+Pushing a `vX.Y.Z` tag starts `.github/workflows/release.yml`. The workflow builds the ingester image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/szpaczyna/apple-health-stack-ingester`. It then creates a GitHub release with generated notes.
+
+```sh
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The image gets the tags `1.2.0`, `1.2` and `1` plus `latest`. A tag with a hyphen, such as `v1.2.0-rc.1`, publishes only `1.2.0-rc.1` and marks the GitHub release as a prerelease.
+
+To run the published image instead of building it, create `docker-compose.override.yml` next to `docker-compose.yml`. Compose merges the override file on its own, so `docker-compose.yml` stays unchanged:
+
+```yaml
+services:
+  ingester:
+    image: ghcr.io/szpaczyna/apple-health-stack-ingester:1.2.0
+```
+
+With both `build` and `image` set, Compose pulls the image and builds from source only if the pull fails. Fetch the image ahead of time with `docker compose pull ingester`, then run the ingester as before.
+
 ## Project layout
 
 ```
