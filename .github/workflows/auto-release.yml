@@ -1,0 +1,95 @@
+name: Auto release
+
+# Runs on the push that a merge creates rather than on pull_request, so merged
+# PRs from forks get a write token and the release records the tagged commit.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  tag:
+    name: Tag next version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # Serializes version computation so two quick merges cannot pick the same tag.
+    concurrency:
+      group: auto-release
+      cancel-in-progress: false
+    permissions:
+      contents: write # create the tag
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: version
+        name: Compute and create tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          pr=$(gh api "repos/$GH_REPO/commits/$SHA/pulls" \
+            --jq '[.[] | select(.merged_at != null and .base.ref == "main")][0] // empty')
+          if [[ -z "$pr" ]]; then
+            echo "::notice::$SHA does not come from a merged PR, no release"
+            exit 0
+          fi
+          PR_NUMBER=$(jq -r .number <<<"$pr")
+          LABELS=$(jq -c '[.labels[].name]' <<<"$pr")
+
+          bump=""
+          for level in major minor patch; do
+            if jq -e --arg l "$level" 'index($l) != null' <<<"$LABELS" >/dev/null; then
+              bump=$level
+              break
+            fi
+          done
+          if [[ -z "$bump" ]]; then
+            echo "::notice::PR #$PR_NUMBER has no major, minor or patch label, no release"
+            exit 0
+          fi
+
+          base=v0.0.0
+          while read -r t; do
+            if [[ "$t" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              base=$t
+              break
+            fi
+          done < <(git tag -l --sort=-v:refname)
+
+          IFS=. read -r major minor patch <<<"${base#v}"
+          major=$((10#$major)) minor=$((10#$minor)) patch=$((10#$patch))
+          case "$bump" in
+            major) major=$((major + 1)) minor=0 patch=0 ;;
+            minor) minor=$((minor + 1)) patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+          next="v$major.$minor.$patch"
+          echo "Bump $bump: $base -> $next on $SHA"
+
+          if ! gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$next" -f sha="$SHA" >/dev/null; then
+            echo "::error::Could not create tag $next, it may already exist"
+            exit 1
+          fi
+          echo "tag=$next" >>"$GITHUB_OUTPUT"
+
+  release:
+    name: Release
+    needs: tag
+    if: needs.tag.outputs.tag != ''
+    permissions:
+      contents: write # create the GitHub release
+      packages: write # push the image to GHCR
+      id-token: write # sign the provenance attestation
+      attestations: write # store the provenance attestation
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
