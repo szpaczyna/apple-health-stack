@@ -125,7 +125,19 @@ python -m unittest discover -s ingester/tests
 
 ## Releases
 
-Pushing a `vX.Y.Z` tag starts `.github/workflows/release.yml`. The workflow builds the ingester image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/szpaczyna/apple-health-stack-ingester`. It then creates a GitHub release with generated notes.
+`.github/workflows/release.yml` builds the ingester image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/szpaczyna/apple-health-stack-ingester`. It then creates a GitHub release with generated notes.
+
+Merging a pull request into `main` releases the next version when the pull request has a release label. `.github/workflows/auto-release.yml` takes the highest stable `vX.Y.Z` tag and bumps it according to the label:
+
+| Label   | `v1.2.3` becomes |
+|---------|------------------|
+| `patch` | `v1.2.4`         |
+| `minor` | `v1.3.0`         |
+| `major` | `v2.0.0`         |
+
+When a pull request has more than one release label, the largest bump wins. The workflow tags the merge commit and then runs the release workflow for the new tag. Merging a pull request without a release label creates no tag and no release, and so does a direct push to `main` or a merge into any other branch.
+
+Pushing a `vX.Y.Z` tag by hand starts the same release workflow:
 
 ```sh
 git tag v1.2.0
