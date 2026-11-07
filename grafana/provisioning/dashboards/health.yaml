@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: health
+    orgId: 1
+    folder: Health
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/health

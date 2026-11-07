@@ -1,0 +1,778 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
+            "axisGridShow": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 70,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "masskg"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "bodymass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "BodyMass"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "leanbodymass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "LeanBodyMass"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "bodyfat"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-red",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "BodyFat"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS bodymass\nFROM records\nWHERE measurement = 'BodyMass'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "hide": true,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS leanbodymass\nFROM records\nWHERE measurement = 'LeanBodyMass'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS bodyfat\nFROM records\nWHERE measurement = 'BodyFatPercentage'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "C"
+        }
+      ],
+      "title": "Body Mass",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
+            "axisGridShow": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "steps"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Steps"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "Steps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "distance"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "displayName",
+                "value": "Distance"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "Distance"
+              },
+              {
+                "id": "unit",
+                "value": "lengthkm"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  sum(value) AS steps\nFROM records\nWHERE measurement = 'StepCount'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  sum(value) AS distance\nFROM records\nWHERE measurement = 'DistanceWalkingRunning'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "B"
+        }
+      ],
+      "title": "Steps/Distance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Beats per min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS \"Mean\"\nFROM records\nWHERE measurement = 'RestingHeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Resting Heart Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Beats per min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  max(value) AS \"Max\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS \"Mean\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  min(value) AS \"Min\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "C"
+        }
+      ],
+      "title": "Heart Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 80
+              },
+              {
+                "color": "blue",
+                "value": 120
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS \"Systolic\"\nFROM records\nWHERE measurement = 'BloodPressureSystolic'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS \"Diastolic\"\nFROM records\nWHERE measurement = 'BloodPressureDiastolic'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "B"
+        }
+      ],
+      "title": "Blood Pressure",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [
+    "health",
+    "postgresql"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now/y",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Health Data",
+  "uid": "7q2dyb6spvcp44",
+  "version": 1,
+  "weekStart": ""
+}

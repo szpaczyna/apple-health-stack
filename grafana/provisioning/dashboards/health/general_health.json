@@ -1,0 +1,289 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "panels": [],
+      "repeat": "metrics",
+      "repeatDirection": "v",
+      "title": "$metrics",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 60,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trend"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  avg(value) AS \"mean\",\n  max(value) AS \"max\",\n  min(value) AS \"min\"\nFROM records\nWHERE measurement IN (${metrics:sqlstring})\n  AND $__timeFilter(time)\n  AND (device ~ '^${source:regex}$')\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH buckets AS (\n  SELECT\n    $__timeGroup(time, $__interval) AS bucket,\n    avg(value) AS y\n  FROM records\n  WHERE measurement IN (${metrics:sqlstring})\n    AND $__timeFilter(time)\n    AND (device ~ '^${source:regex}$')\n  GROUP BY 1\n)\nSELECT\n  bucket AS time,\n  (SELECT regr_intercept(y, bucket) FROM buckets)\n    + (SELECT regr_slope(y, bucket) FROM buckets) * bucket AS \"trend\"\nFROM buckets\nORDER BY 1",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CASE unit\n    WHEN 'count' THEN 'short'\n    WHEN 'count/min' THEN 'suffix: /min'\n    WHEN '%' THEN 'percentunit'\n    WHEN 'min' THEN 'm'\n    WHEN 'hr' THEN 'h'\n    WHEN 's' THEN 's'\n    WHEN 'kg' THEN 'masskg'\n    WHEN 'g' THEN 'massg'\n    WHEN 'mg' THEN 'massmg'\n    WHEN 'km' THEN 'lengthkm'\n    WHEN 'km/hr' THEN 'velocitykmh'\n    WHEN 'mL' THEN 'mlitre'\n    WHEN 'degC' THEN 'celsius'\n    WHEN 'dBASPL' THEN 'dB'\n    ELSE 'suffix: ' || unit\n  END AS unit\nFROM records\nWHERE measurement IN (${metrics:sqlstring})\nLIMIT 1",
+          "refId": "UNIT"
+        }
+      ],
+      "title": "${metrics}",
+      "type": "timeseries",
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "configRefId": "UNIT",
+            "mappings": [
+              {
+                "fieldName": "unit",
+                "handlerKey": "unit"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [
+    "health",
+    "postgresql"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "postgres"
+        },
+        "definition": "SELECT DISTINCT measurement FROM records ORDER BY measurement",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "metrics",
+        "options": [],
+        "query": "SELECT DISTINCT measurement FROM records ORDER BY measurement",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "postgres"
+        },
+        "definition": "SELECT DISTINCT device FROM records ORDER BY device",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "source",
+        "options": [],
+        "query": "SELECT DISTINCT device FROM records ORDER BY device",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6M",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "All Health",
+  "uid": "wrcy5qltwtr5l2",
+  "version": 1,
+  "weekStart": ""
+}
