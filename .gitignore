@@ -1,3 +1,8 @@
+## general
+.idea/**
+graphify*
+*HANDOFF*
+*handoff*
 ### macOS
 # General
 .DS_Store
