@@ -162,7 +162,12 @@ With both `build` and `image` set, Compose pulls the image and builds from sourc
 ├── docker-compose.yml
 ├── .env.example
 ├── ingester/                 Python ingester and its Dockerfile
-│   └── sql/001_schema.sql    Tables and indexes
+│   ├── app.py                Entrypoint: streams export.xml from the zip, loads GPX routes
+│   ├── db.py                 Connection, schema, indexes and COPY writes
+│   ├── formatters.py         Apple Health records to table rows
+│   ├── log.py                Colored console logger
+│   ├── sql/001_schema.sql    Tables and indexes
+│   └── tests/                Unit tests (python -m unittest discover -s ingester/tests)
 ├── postgres/                 Init script for the read-only Grafana user
 └── grafana/provisioning/     Datasource and dashboards
 ```
