@@ -12,7 +12,7 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py formatters.py log.py ./
+COPY app.py db.py formatters.py log.py ./
 COPY sql/ ./sql/
 
 # The code stays root-owned; the ingester only writes the extracted GPX routes.
