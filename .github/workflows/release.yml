@@ -45,9 +45,18 @@ jobs:
             exit 1
           fi
 
+  test:
+    name: Test
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+    with:
+      # env is not available in a reusable workflow call.
+      ref: refs/tags/${{ inputs.tag || github.ref_name }}
+
   image:
     name: Build and push ingester image
-    needs: validate
+    needs: [validate, test]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:

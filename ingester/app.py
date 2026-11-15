@@ -24,7 +24,6 @@ from formatters import (
     format_record,
     format_workout,
     sleep_analysis_formatter,
-    parse_date,
 )
 
 # --- Configuration ---
