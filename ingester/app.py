@@ -27,6 +27,8 @@ from formatters import (
     sleep_analysis_formatter,
 )
 
+from log import logger
+
 # --- Configuration ---
 PG_HOST = os.getenv("PG_HOST", "localhost")
 PG_PORT = int(os.getenv("PG_PORT", 5432))
@@ -48,34 +50,6 @@ ZIP_ROUTES_DIR = posixpath.join(ZIP_EXPORT_DIR, "workout-routes")
 EXPORT_XML_REGEX = re.compile(r"(export|导出)\.xml", re.IGNORECASE)
 # Record types whose numbers live in <MetadataEntry> children rather than in value.
 METADATA_RECORD_TYPES = {"HeadphoneAudioExposureEvent"}
-
-
-# --- Logger ---
-class _Colors:
-    """ANSI color codes"""
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    RESET = '\033[0m'
-
-
-class Logger:
-    """Simple logger for colorized console output."""
-    def info(self, message):
-        print(f"{_Colors.BLUE}{message}{_Colors.RESET}")
-
-    def success(self, message):
-        print(f"{_Colors.GREEN}{message}{_Colors.RESET}")
-
-    def warn(self, message):
-        print(f"{_Colors.YELLOW}{message}{_Colors.RESET}")
-
-    def error(self, message):
-        print(f"{_Colors.RED}{message}{_Colors.RESET}")
-
-
-logger = Logger()
 
 
 class ImportAbortedError(Exception):
