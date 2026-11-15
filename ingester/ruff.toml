@@ -1,0 +1,3 @@
+[lint]
+# Pinned so new ruff default rules cannot break CI.
+select = ["E4", "E7", "E9", "F"]

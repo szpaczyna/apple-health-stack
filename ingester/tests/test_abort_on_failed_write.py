@@ -6,6 +6,8 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app
+import db
+import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")
 SLEEP = (None, "Watch", "Core", 1, None, None)
@@ -102,8 +104,8 @@ class PushSourcesRetryTest(unittest.TestCase):
     def test_dropped_connection_is_retried(self):
         conn = mock.MagicMock()
         copy = conn.cursor.return_value.__enter__.return_value.copy
-        copy.side_effect = [app.psycopg.OperationalError("connection lost"), mock.MagicMock()]
-        with mock.patch.object(app, "DB_RETRY_COOLDOWN", 0):
+        copy.side_effect = [psycopg.OperationalError("connection lost"), mock.MagicMock()]
+        with mock.patch.object(db, "DB_RETRY_COOLDOWN", 0):
             app.push_sources(conn, {"Watch", "iPhone"})
         self.assertEqual(copy.call_count, 2)
         self.assertEqual(conn.ensure_open.call_count, 2)

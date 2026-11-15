@@ -27,17 +27,22 @@ def parse_date(v: Any) -> dt:
     return parsed
 
 
+def measurement_name(record_type: str) -> str:
+    """Apple Health type identifier without its HK...Identifier prefix."""
+    return (
+        record_type
+        .removeprefix("HKQuantityTypeIdentifier")
+        .removeprefix("HKCategoryTypeIdentifier")
+        .removeprefix("HKDataType")
+    )
+
+
 def format_record(record: dict[str, Any]) -> list[tuple]:
     """
     Format an Apple Health XML Record element into a list of PostgreSQL row tuples.
     Returns list of: (measurement, time, value, unit, device)
     """
-    measurement = (
-        record.get("type", "Record")
-        .removeprefix("HKQuantityTypeIdentifier")
-        .removeprefix("HKCategoryTypeIdentifier")
-        .removeprefix("HKDataType")
-    )
+    measurement = measurement_name(record.get("type", "Record"))
 
     if measurement == "AppleStandHour":
         return apple_stand_hour_formatter(record)
