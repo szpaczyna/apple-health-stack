@@ -23,6 +23,7 @@ from gpxpy.gpx import GPXTrackPoint
 from formatters import (
     format_record,
     format_workout,
+    measurement_name,
     sleep_analysis_formatter,
 )
 
@@ -437,12 +438,7 @@ def health_data_generator(xml_file: str) -> Generator[tuple, None, None]:
         for _, elem in context:
             try:
                 if elem.tag == "Record":
-                    record_type = (
-                        elem.get("type", "Record")
-                        .removeprefix("HKQuantityTypeIdentifier")
-                        .removeprefix("HKCategoryTypeIdentifier")
-                        .removeprefix("HKDataType")
-                    )
+                    record_type = measurement_name(elem.get("type", "Record"))
                     if record_type == "SleepAnalysis":
                         sleep_rows = sleep_analysis_formatter(dict(elem.attrib))
                         for row in sleep_rows:

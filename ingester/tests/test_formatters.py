@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from formatters import (
     format_record,
     format_workout,
+    measurement_name,
     parse_date,
     parse_float_with_try,
     sleep_analysis_formatter,
@@ -33,6 +34,16 @@ class ParseTest(unittest.TestCase):
 
     def test_parse_date_without_offset_is_utc(self):
         self.assertEqual(parse_date("2026-01-01T10:00:00").tzinfo, timezone.utc)
+
+
+class MeasurementNameTest(unittest.TestCase):
+    def test_prefixes_are_stripped(self):
+        self.assertEqual(measurement_name("HKQuantityTypeIdentifierStepCount"), "StepCount")
+        self.assertEqual(measurement_name("HKCategoryTypeIdentifierSleepAnalysis"), "SleepAnalysis")
+        self.assertEqual(measurement_name("HKDataTypeSleepDurationGoal"), "SleepDurationGoal")
+
+    def test_unprefixed_type_is_unchanged(self):
+        self.assertEqual(measurement_name("Record"), "Record")
 
 
 class FormatRecordTest(unittest.TestCase):
