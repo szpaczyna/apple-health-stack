@@ -1,13 +1,10 @@
 import os
-import sys
 import tempfile
 import unittest
 import zipfile
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import app
+from apple_health_ingester import app
 
 
 class ExtractWorkoutRoutesTest(unittest.TestCase):

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apple-health-ingester"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = [
+    "psycopg[binary]==3.3.8",
+    "gpxpy==1.6.2",
+    "lxml==6.1.3",
+    "PyYAML==6.0.3",
+]
+
+[project.scripts]
+apple-health-ingester = "apple_health_ingester.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+apple_health_ingester = ["sql/*.sql"]
+
+[tool.ruff.lint]
+# Pinned so new ruff default rules cannot break CI.
+select = ["E4", "E7", "E9", "F"]

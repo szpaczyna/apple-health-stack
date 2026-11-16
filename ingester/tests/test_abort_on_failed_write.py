@@ -1,12 +1,8 @@
 import os
-import sys
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import app
-import db
+from apple_health_ingester import app, db
 import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")

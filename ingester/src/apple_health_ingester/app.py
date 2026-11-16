@@ -17,7 +17,7 @@ from concurrent.futures.process import BrokenProcessPool
 import gpxpy
 from gpxpy.gpx import GPXTrackPoint
 
-from db import (
+from .db import (
     SOURCES_COLUMNS,
     ReconnectingConnection,
     build_secondary_indexes,
@@ -31,14 +31,14 @@ from db import (
     write_sleep_batch,
 )
 
-from formatters import (
+from .formatters import (
     format_record,
     format_workout,
     measurement_name,
     sleep_analysis_formatter,
 )
 
-from log import logger
+from .log import logger
 
 # --- Configuration ---
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", 15000))

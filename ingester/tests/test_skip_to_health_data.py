@@ -1,12 +1,8 @@
 import io
-import os
 import random
-import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import app
+from apple_health_ingester import app
 
 PROLOG = b'<?xml version="1.0"?>\n<!DOCTYPE HealthData [\n<!ELEMENT HealthData ANY>\n]>\n'
 FIRST = b' <HealthData locale="pl_PL">\n'

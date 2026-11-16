@@ -2,11 +2,12 @@
 import os
 import re
 import time
+from importlib.resources import files
 
 import psycopg
 from psycopg import sql
 
-from log import logger
+from .log import logger
 
 # --- Configuration ---
 PG_HOST = os.getenv("PG_HOST", "localhost")
@@ -81,7 +82,6 @@ def wait_for_db():
             time.sleep(2)
 
 
-SCHEMA_FILE = os.path.join(os.path.dirname(__file__), "sql", "001_schema.sql")
 # Secondary indexes are the plain (non-unique) CREATE INDEX statements in the
 # schema file. Primary keys / unique indexes are never dropped.
 SECONDARY_INDEX_REGEX = re.compile(r"CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+(\w+)", re.IGNORECASE)
@@ -89,8 +89,7 @@ ANALYZE_TABLES = ("records", "sleep_analysis", "workout_routes", "data_sources")
 
 
 def read_schema() -> str:
-    with open(SCHEMA_FILE, "r") as f:
-        return f.read()
+    return (files(__package__) / "sql" / "001_schema.sql").read_text()
 
 
 def init_schema(conn):
