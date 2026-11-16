@@ -1,6 +1,7 @@
 """Command-line entry point that imports an Apple Health export zip into PostgreSQL."""
 import argparse
 import contextlib
+import importlib.metadata
 import os
 import sys
 import tempfile
@@ -29,6 +30,13 @@ from .routes import extract_workout_routes, process_workout_routes, resolve_gpx_
 
 # --- Main ---
 
+def package_version():
+    try:
+        return importlib.metadata.version("apple-health-ingester")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         prog="apple-health-ingester",
@@ -37,6 +45,7 @@ def parse_args(argv=None):
     parser.add_argument("--config", metavar="PATH", help="YAML config file")
     parser.add_argument("--zip", metavar="PATH", help="Apple Health export zip")
     parser.add_argument("--print-config", action="store_true", help="print the effective config and exit")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {package_version()}")
     return parser.parse_args(argv)
 
 

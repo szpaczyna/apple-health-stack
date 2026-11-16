@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "apple-health-ingester"
-version = "0.0.0"
+dynamic = ["version"]
 requires-python = ">=3.13"
 dependencies = [
     "psycopg[binary]==3.3.8",
@@ -15,6 +15,10 @@ dependencies = [
 
 [project.scripts]
 apple-health-ingester = "apple_health_ingester.cli:main"
+
+[tool.setuptools_scm]
+root = ".."
+fallback_version = "0.0.0"
 
 [tool.setuptools.packages.find]
 where = ["src"]

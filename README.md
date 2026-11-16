@@ -90,6 +90,8 @@ pipx install ./ingester
 uv tool install ./ingester
 ```
 
+The package version comes from the git tag: a build on the `v1.1.1` tag gets `1.1.1`, and a build between tags gets a `.devN` version. `apple-health-ingester --version` prints it. After you pull or tag, `pipx install --force ./ingester` or `uv tool install --reinstall ./ingester` installs the new version.
+
 Then point it at the export:
 
 ```sh
