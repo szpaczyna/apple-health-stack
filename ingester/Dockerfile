@@ -4,7 +4,10 @@ WORKDIR /src
 
 COPY pyproject.toml ./
 COPY src/ ./src/
-RUN pip wheel --no-cache-dir --no-deps -w /wheels .
+# The build context has no .git, so setuptools-scm takes the version from this build arg.
+ARG VERSION=0.0.0
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_APPLE_HEALTH_INGESTER=${VERSION} \
+    pip wheel --no-cache-dir --no-deps -w /wheels .
 
 FROM python:3.15-slim
 
