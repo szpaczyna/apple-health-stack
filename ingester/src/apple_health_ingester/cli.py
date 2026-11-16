@@ -1,9 +1,11 @@
 """Command-line entry point that imports an Apple Health export zip into PostgreSQL."""
+import argparse
+import os
 import sys
 import time
 import zipfile
 
-from . import export_xml
+from . import config, export_xml
 
 from .db import (
     ReconnectingConnection,
@@ -25,8 +27,33 @@ from .routes import extract_workout_routes, process_workout_routes
 
 # --- Main ---
 
-def main():
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="apple-health-ingester",
+        description="Import an Apple Health export zip into PostgreSQL.",
+    )
+    parser.add_argument("--config", metavar="PATH", help="YAML config file")
+    parser.add_argument("--zip", metavar="PATH", help="Apple Health export zip")
+    parser.add_argument("--print-config", action="store_true", help="print the effective config and exit")
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
     """Main execution function."""
+    args = parse_args(argv)
+    cli_args = {"config": args.config}
+    if args.zip:
+        cli_args["zip_path"] = args.zip
+    try:
+        cfg, config_path = config.load(cli_args, os.environ)
+    except config.ConfigError as e:
+        logger.error(str(e))
+        sys.exit(2)
+    if args.print_config:
+        print(f"# config file: {config_path or 'none'}")
+        print(config.to_yaml(cfg), end="")
+        sys.exit(0)
+
     import_start = time.monotonic()
     # Open the zip; export.xml is streamed from it later, only GPX routes go to disk
     logger.info("Opening the export file...")

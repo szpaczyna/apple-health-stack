@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from unittest import mock
 
@@ -35,12 +36,15 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
     routes_names = ("write_routes_batch",)
     cli_calls = {k: v for k, v in calls.items() if k not in export_xml_names + routes_names}
     with (
+        tempfile.TemporaryDirectory() as config_home,
+        # Keeps a real ~/.config file or PG_* variables out of the config load.
+        mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": config_home}, clear=True),
         mock.patch.multiple(cli, **cli_calls),
         mock.patch.multiple(export_xml, **{k: calls[k] for k in export_xml_names}),
         mock.patch.multiple(routes, **{k: calls[k] for k in routes_names}),
     ):
         try:
-            cli.main()
+            cli.main([])
             calls["exit_code"] = 0
         except SystemExit as e:
             calls["exit_code"] = e.code
