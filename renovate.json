@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "automerge": false,
+  "dependencyDashboard": {
+    "enabled": true
+  },
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "description": "Track the Python version in setup-python steps.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": ["python-version:\\s*[\"']?(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)[\"']?"],
+      "depNameTemplate": "python",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Track the ruff version installed by pip in workflows.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": ["ruff==(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "ruff",
+      "datasourceTemplate": "pypi"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions updates into one PR.",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Keep runner OS upgrades out of the action bumps.",
+      "matchDepTypes": ["github-runner"],
+      "groupName": "GitHub runners"
+    },
+    {
+      "description": "Move the Python version in the Dockerfile, .python-version and workflows together.",
+      "matchPackageNames": ["python"],
+      "groupName": "Python"
+    },
+    {
+      "description": "Skip the built-in setup-python extraction; the custom regex manager tracks python-version.",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["uses-with"],
+      "matchPackageNames": ["actions/python-versions"],
+      "enabled": false
+    }
+  ]
+}
