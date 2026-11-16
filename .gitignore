@@ -47,6 +47,8 @@ build/
 venv/
 
 ### Project
-# Apple Health export (copied next to docker-compose.yml or ingester/app.py)
+# Apple Health export (copied next to docker-compose.yml)
 export.zip
 export/
+# Local ingester config; it can hold a password
+ingester/config.yaml

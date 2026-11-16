@@ -19,9 +19,5 @@ USER ingester
 
 # Export zip should be mounted at /app/export.zip
 ENV ZIP_PATH=/app/export.zip
-ENV PG_HOST=postgres
-ENV PG_PORT=5432
-ENV PG_USER=postgres
-ENV PG_DB=health
 
-CMD ["apple-health-ingester"]
+ENTRYPOINT ["apple-health-ingester"]

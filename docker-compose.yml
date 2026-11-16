@@ -40,11 +40,18 @@ services:
     environment:
       PG_HOST: postgres
       PG_PASS: ${POSTGRES_PASSWORD:-health}
+      APPLE_HEALTH_CONFIG: /etc/apple-health-ingester/config.yaml
     volumes:
       # Without create_host_path: false, a missing zip becomes an empty directory on the host.
       - type: bind
         source: ${EXPORT_ZIP:-./export.zip}
         target: /app/export.zip
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${INGESTER_CONFIG:-./ingester/config.example.yaml}
+        target: /etc/apple-health-ingester/config.yaml
         read_only: true
         bind:
           create_host_path: false

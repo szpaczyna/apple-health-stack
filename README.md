@@ -64,14 +64,14 @@ Grafana expands `$NAME` in provisioning files, so a `$` in `GRAFANA_DB_PASSWORD`
 
 ## What the ingester does
 
-1. Reads `export.xml` as a stream from the zip and extracts the `workout-routes/*.gpx` files only.
-2. Creates the tables if they are missing, truncates them, and drops the secondary indexes.
+1. Reads `export.xml` as a stream from the zip and extracts only the `workout-routes/*.gpx` files, into a temporary directory that the ingester removes on exit. Set `import.unpack_dir` to keep them in a fixed directory instead.
+2. Waits for PostgreSQL, then creates the tables if they are missing, truncates them, and drops the secondary indexes.
 3. Loads records and sleep data with `COPY`, then parses the GPX routes in parallel.
 4. Rebuilds the indexes, runs `ANALYZE`, and prints how long each step took.
 
-If the database connection drops, the ingester reconnects and retries the failed batch.
+The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. If the connection drops during the import, the ingester reconnects and retries the failed batch.
 
-Schema: `ingester/sql/001_schema.sql`.
+Schema: `ingester/src/apple_health_ingester/sql/001_schema.sql`.
 
 | Table | Contents |
 |---|---|
@@ -80,47 +80,121 @@ Schema: `ingester/sql/001_schema.sql`.
 | `workout_routes` | GPX track points with speed and distance |
 | `data_sources` | Devices and apps that produced the data |
 
+## Install the command
+
+The ingester is a Python package with the command `apple-health-ingester`. To run it on your machine against your own PostgreSQL server, install it with pipx or uv:
+
+```sh
+pipx install ./ingester
+# or
+uv tool install ./ingester
+```
+
+Then point it at the export:
+
+```sh
+apple-health-ingester --zip ~/Downloads/export.zip
+```
+
 ## Ingester settings
 
-Set these in the `ingester` service of `docker-compose.yml`, or as environment variables when you run the ingester against another PostgreSQL server. For the second case, copy `ingester/.env.example` to `ingester/.env` and edit it. Then run the image:
+A command-line flag beats an environment variable, an environment variable beats the file, and the file beats the built-in default. An empty environment variable counts as unset.
+
+`ingester/config.example.yaml` lists every key with the name of its environment variable. Copy it to `~/.config/apple-health-ingester/config.yaml` and edit it. The ingester looks for the file in this order:
+
+1. `--config PATH`
+2. `$APPLE_HEALTH_CONFIG`
+3. `$XDG_CONFIG_HOME/apple-health-ingester/config.yaml`, with `~/.config` as the default for `XDG_CONFIG_HOME`
+
+A path from `--config` or `APPLE_HEALTH_CONFIG` must exist, otherwise the ingester exits with status 2. Without any config file the ingester runs on environment variables and defaults. Unknown keys and values of the wrong type also stop it with status 2.
+
+To check the result of all sources, print the effective config. The ingester shows the password as `***`:
+
+```sh
+apple-health-ingester --print-config
+```
+
+| YAML key | Variable | Default | Description |
+|---|---|---|---|
+| `database.host` | `PG_HOST` | `localhost` (`postgres` in Compose) | PostgreSQL host |
+| `database.port` | `PG_PORT` | `5432` | PostgreSQL port |
+| `database.user` | `PG_USER` | `postgres` | PostgreSQL user |
+| `database.dbname` | `PG_DB` | `health` | Database name; it must exist |
+| `database.password` | `PG_PASS` | unset, which uses a pgpass file | PostgreSQL password |
+| `database.passfile` | `PG_PASSFILE` | unset, then `PGPASSFILE`, then `~/.pgpass` | Password file used without a password |
+| `database.max_retries` | `DB_MAX_RETRIES` | `5` | Attempts per failed batch |
+| `database.retry_cooldown` | `DB_RETRY_COOLDOWN` | `10` | Seconds between attempts |
+| `database.wait_timeout` | `DB_WAIT_TIMEOUT` | `120` | Seconds to wait for PostgreSQL at startup |
+| `import.zip_path` | `ZIP_PATH`, `--zip` | `./export.zip` (`/app/export.zip` in the image) | Path to the export |
+| `import.batch_size` | `BATCH_SIZE` | `15000` | Rows per `COPY` batch |
+| `import.gpx_workers` | `GPX_WORKERS` | usable CPU count | Processes parsing GPX files; `1` parses serially |
+| `import.unpack_dir` | `UNPACK_DIR` | unset, which uses a temporary directory | Directory for the extracted GPX files, kept after the run |
+
+`GPX_WORKERS` does not see container CPU limits such as `docker run --cpus`. Set it explicitly when you use one.
+
+The image sets `ZIP_PATH` to the mount target `/app/export.zip`, so `import.zip_path` in a config file has no effect inside the container.
+
+### Password file
+
+Without a password the ingester reads it from a pgpass file. Each line has the form `host:port:dbname:user:password`, and `*` matches any value in the first four fields:
+
+```sh
+echo 'localhost:5432:health:postgres:change-me' >> ~/.pgpass
+chmod 600 ~/.pgpass
+```
+
+Set `database.passfile` to use a file other than `~/.pgpass`. Before it connects, the ingester checks that the file exists with mode `0600` or stricter. The file must also contain a line for the configured host, port, database and user. If a check fails, the ingester exits with status 1 and names the problem.
+
+### Docker Compose
+
+Compose mounts `ingester/config.example.yaml` read-only at `/etc/apple-health-ingester/config.yaml` and sets `APPLE_HEALTH_CONFIG` to that path. To use your own file, copy the example to `ingester/config.yaml`, which git ignores, and set `INGESTER_CONFIG`, either in `.env` or on the command line:
+
+```sh
+INGESTER_CONFIG=./ingester/config.yaml docker compose run --rm ingester --print-config
+```
+
+The service sets `PG_HOST` and `PG_PASS`, so the database host and password in the file have no effect under Compose.
+
+### Docker without Compose
+
+To run the image against another PostgreSQL server, copy `ingester/.env.example` to `ingester/.env` and edit it, or mount a config file:
 
 ```sh
 docker build -t apple-health-ingester ingester
 docker run --rm --env-file ingester/.env \
   -v "$PWD/export.zip:/app/export.zip:ro" apple-health-ingester
+docker run --rm \
+  -e APPLE_HEALTH_CONFIG=/etc/apple-health-ingester/config.yaml \
+  -v "$PWD/ingester/config.yaml:/etc/apple-health-ingester/config.yaml:ro" \
+  -v "$PWD/export.zip:/app/export.zip:ro" apple-health-ingester
 ```
 
-Or run the script directly, with the dependencies from `ingester/requirements.txt` installed:
+Arguments after the image name go to `apple-health-ingester`, for example `--print-config`.
+
+The container runs as uid 10001 and has no home directory. To use a pgpass file, mount it and set `PG_PASSFILE`. The mounted file must be readable by uid 10001 and have mode `0600`, for example a copy owned by that uid:
 
 ```sh
-set -a; . ingester/.env; set +a
-python ingester/app.py
+cp ~/.pgpass ~/ingester-pgpass
+chmod 600 ~/ingester-pgpass
+sudo chown 10001 ~/ingester-pgpass
+docker run --rm --env-file ingester/.env \
+  -e PG_PASSFILE=/run/secrets/pgpass \
+  -v "$HOME/ingester-pgpass:/run/secrets/pgpass:ro" \
+  -v "$PWD/export.zip:/app/export.zip:ro" apple-health-ingester
 ```
 
-Inside the image, `ZIP_PATH` defaults to `/app/export.zip` and `PG_HOST` to `postgres`. The table lists the defaults of the script itself.
-
-| Variable | Default | Description |
-|---|---|---|
-| `PG_HOST` | `localhost` (`postgres` in Compose) | PostgreSQL host |
-| `PG_PORT` | `5432` | PostgreSQL port |
-| `PG_USER` | `postgres` | PostgreSQL user |
-| `PG_PASS` | unset, which uses `~/.pgpass` | PostgreSQL password |
-| `PG_DB` | `health` | Database name; it must exist |
-| `ZIP_PATH` | `./export.zip` | Path to the export |
-| `BATCH_SIZE` | `15000` | Rows per `COPY` batch |
-| `GPX_WORKERS` | usable CPU count | Processes parsing GPX files; `1` parses serially |
-| `DB_MAX_RETRIES` | `5` | Attempts per failed batch |
-| `DB_RETRY_COOLDOWN` | `10` | Seconds between attempts |
-
-`GPX_WORKERS` does not see container CPU limits such as `docker run --cpus`. Set it explicitly when you use one.
+Set `PG_PASS` instead if that setup does not suit you.
 
 ## Tests
 
-The unit tests use the standard library only, with the ingester's dependencies installed:
+The unit tests use the standard library only. Install the package in a virtualenv first:
 
 ```sh
-pip install -r ingester/requirements.txt
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ./ingester ruff
 python -m unittest discover -s ingester/tests
+ruff check ingester
 ```
 
 ## Releases
@@ -161,13 +235,22 @@ With both `build` and `image` set, Compose pulls the image and builds from sourc
 ```
 ├── docker-compose.yml
 ├── .env.example
-├── ingester/                 Python ingester and its Dockerfile
-│   ├── app.py                Entrypoint: streams export.xml from the zip, loads GPX routes
-│   ├── db.py                 Connection, schema, indexes and COPY writes
-│   ├── formatters.py         Apple Health records to table rows
-│   ├── log.py                Colored console logger
-│   ├── sql/001_schema.sql    Tables and indexes
-│   └── tests/                Unit tests (python -m unittest discover -s ingester/tests)
-├── postgres/                 Init script for the read-only Grafana user
-└── grafana/provisioning/     Datasource and dashboards
+├── ingester/                       Python package and its Dockerfile
+│   ├── pyproject.toml              Package metadata, dependencies and ruff settings
+│   ├── config.example.yaml         Every config key with its environment variable
+│   ├── src/apple_health_ingester/
+│   │   ├── __main__.py             Runs the CLI for python -m apple_health_ingester
+│   │   ├── cli.py                  Command-line entry point and import steps
+│   │   ├── config.py               YAML file, environment and flag handling
+│   │   ├── db.py                   Connection, schema, indexes and COPY writes
+│   │   ├── export_xml.py           Streams export.xml from the zip into PostgreSQL
+│   │   ├── routes.py               Extracts and loads the GPX workout routes
+│   │   ├── pgpass.py               Password file lookup and checks
+│   │   ├── errors.py               Shared exceptions
+│   │   ├── formatters.py           Apple Health records to table rows
+│   │   ├── log.py                  Colored console logger
+│   │   └── sql/001_schema.sql      Tables and indexes
+│   └── tests/                      Unit tests (python -m unittest discover -s ingester/tests)
+├── postgres/                       Init script for the read-only Grafana user
+└── grafana/provisioning/           Datasource and dashboards
 ```
