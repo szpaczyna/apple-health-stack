@@ -1,0 +1,15 @@
+database:
+  host: localhost          # PG_HOST
+  port: 5432               # PG_PORT
+  user: postgres           # PG_USER
+  dbname: health           # PG_DB
+  password: null           # PG_PASS; prefer passfile
+  passfile: null           # PG_PASSFILE, then PGPASSFILE, then ~/.pgpass
+  max_retries: 5           # DB_MAX_RETRIES
+  retry_cooldown: 10       # DB_RETRY_COOLDOWN, seconds
+  wait_timeout: 120        # DB_WAIT_TIMEOUT, seconds
+import:
+  zip_path: ./export.zip   # ZIP_PATH, --zip
+  batch_size: 15000        # BATCH_SIZE
+  gpx_workers: null        # GPX_WORKERS; null uses the usable CPU count
+  unpack_dir: null         # UNPACK_DIR; null uses a temporary directory

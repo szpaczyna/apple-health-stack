@@ -1,11 +1,8 @@
 import os
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import app
+from apple_health_ingester import routes
 
 GPX = """<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
@@ -24,7 +21,7 @@ def parse(name_element: str, file_name: str) -> list:
         path = os.path.join(tmp, file_name)
         with open(path, "w") as f:
             f.write(GPX.format(name=name_element))
-        return app.parse_workout_route(path)
+        return routes.parse_workout_route(path)
 
 
 class UnnamedGpxTrackTest(unittest.TestCase):

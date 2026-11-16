@@ -1,26 +1,26 @@
 import os
-import sys
+import tempfile
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import app
-import db
+from apple_health_ingester import cli, export_xml, routes
+from apple_health_ingester.config import DatabaseConfig
 import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")
 SLEEP = (None, "Watch", "Core", 1, None, None)
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None):
-    """Run app.main() with the zip and database replaced by fakes."""
+def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None, env=None,
+             on_extract=None):
+    """Run cli.main() with the zip and database replaced by fakes; on_extract(zip, path) replaces the extraction."""
     conn = mock.MagicMock(closed=False)
     if sources_error:
         conn.cursor.side_effect = sources_error
     calls = {
         "zipfile": mock.MagicMock(),
-        "extract_workout_routes": mock.MagicMock(return_value=0),
+        "extract_workout_routes": mock.MagicMock(return_value=0, side_effect=on_extract),
         "wait_for_db": mock.MagicMock(),
         "ReconnectingConnection": mock.MagicMock(return_value=conn),
         "init_schema": mock.MagicMock(),
@@ -34,9 +34,20 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
         "process_workout_routes": mock.MagicMock(),
         "build_secondary_indexes": mock.MagicMock(return_value=(0.0, 0.0)),
     }
-    with mock.patch.multiple(app, **calls):
+    # Patch each name in the module that looks it up at call time.
+    export_xml_names = ("find_xml_file", "health_data_generator", "write_records_batch", "write_sleep_batch")
+    routes_names = ("write_routes_batch",)
+    cli_calls = {k: v for k, v in calls.items() if k not in export_xml_names + routes_names}
+    with (
+        tempfile.TemporaryDirectory() as config_home,
+        # Keeps a real ~/.config file or PG_* variables out of the config load.
+        mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": config_home, "PG_PASS": "test", **(env or {})}, clear=True),
+        mock.patch.multiple(cli, **cli_calls),
+        mock.patch.multiple(export_xml, **{k: calls[k] for k in export_xml_names}),
+        mock.patch.multiple(routes, **{k: calls[k] for k in routes_names}),
+    ):
         try:
-            app.main()
+            cli.main([])
             calls["exit_code"] = 0
         except SystemExit as e:
             calls["exit_code"] = e.code
@@ -45,8 +56,7 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
 
 class AbortOnFailedWriteTest(unittest.TestCase):
     def test_failed_records_batch_mid_run_aborts(self):
-        with mock.patch.object(app, "BATCH_SIZE", 1):
-            calls = run_main([("record", RECORD)] * 3, records_ok=False)
+        calls = run_main([("record", RECORD)] * 3, records_ok=False, env={"BATCH_SIZE": "1"})
         self.assertEqual(calls["exit_code"], 1)
         calls["process_workout_routes"].assert_not_called()
         calls["build_secondary_indexes"].assert_not_called()
@@ -77,36 +87,32 @@ class RouteWriteFailureTest(unittest.TestCase):
         parsed = [("Route A", [("route-a",)])]
         write = mock.MagicMock(return_value=False)
         with mock.patch.multiple(
-            app,
-            ROUTES_PATH=os.path.dirname(os.path.abspath(__file__)),
-            get_gpx_workers=mock.MagicMock(return_value=1),
+            routes,
             parse_workout_route=mock.MagicMock(return_value=parsed),
             write_routes_batch=write,
-        ), mock.patch.object(app.os, "listdir", return_value=["a.gpx", "b.gpx"]):
+        ), mock.patch.object(routes.os, "listdir", return_value=["a.gpx", "b.gpx"]):
             with self.assertRaises(Exception):
-                app.process_workout_routes(mock.MagicMock())
+                routes.process_workout_routes(mock.MagicMock(), TESTS_DIR, 1)
         write.assert_called_once()
 
     def test_unparsable_route_file_is_skipped(self):
         parse = mock.MagicMock(side_effect=ValueError("bad gpx"))
         with mock.patch.multiple(
-            app,
-            ROUTES_PATH=os.path.dirname(os.path.abspath(__file__)),
-            get_gpx_workers=mock.MagicMock(return_value=1),
+            routes,
             parse_workout_route=parse,
             write_routes_batch=mock.MagicMock(return_value=True),
-        ), mock.patch.object(app.os, "listdir", return_value=["a.gpx", "b.gpx"]):
-            app.process_workout_routes(mock.MagicMock())
+        ), mock.patch.object(routes.os, "listdir", return_value=["a.gpx", "b.gpx"]):
+            routes.process_workout_routes(mock.MagicMock(), TESTS_DIR, 1)
         self.assertEqual(parse.call_count, 2)
 
 
 class PushSourcesRetryTest(unittest.TestCase):
     def test_dropped_connection_is_retried(self):
         conn = mock.MagicMock()
+        conn.cfg = DatabaseConfig(retry_cooldown=0)
         copy = conn.cursor.return_value.__enter__.return_value.copy
         copy.side_effect = [psycopg.OperationalError("connection lost"), mock.MagicMock()]
-        with mock.patch.object(db, "DB_RETRY_COOLDOWN", 0):
-            app.push_sources(conn, {"Watch", "iPhone"})
+        export_xml.push_sources(conn, {"Watch", "iPhone"})
         self.assertEqual(copy.call_count, 2)
         self.assertEqual(conn.ensure_open.call_count, 2)
         conn.discard_transaction.assert_called_once()

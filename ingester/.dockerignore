@@ -1,6 +1,6 @@
-__pycache__/
-*.pyc
-*.pyo
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 .env
 export.zip
 export/
@@ -8,3 +8,6 @@ venv/
 .venv/
 .git/
 dashboards/
+tests/
+**/*.egg-info/
+build/

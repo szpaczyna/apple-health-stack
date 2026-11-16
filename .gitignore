@@ -32,6 +32,8 @@ Temporary Items
 __pycache__/
 *.py[codz]
 *$py.class
+*.egg-info/
+build/
 
 # Tool caches
 .pytest_cache/
@@ -45,6 +47,8 @@ __pycache__/
 venv/
 
 ### Project
-# Apple Health export (copied next to docker-compose.yml or ingester/app.py)
+# Apple Health export (copied next to docker-compose.yml)
 export.zip
 export/
+# Local ingester config; it can hold a password
+ingester/config.yaml
