@@ -25,7 +25,7 @@ env:
 jobs:
   validate:
     name: Validate compose file
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -57,7 +57,7 @@ jobs:
   image:
     name: Build and push ingester image
     needs: [validate, test]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -120,7 +120,7 @@ jobs:
   release:
     name: Create GitHub release
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write # create the GitHub release
