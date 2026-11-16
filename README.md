@@ -96,6 +96,8 @@ Then point it at the export:
 apple-health-ingester --zip ~/Downloads/export.zip
 ```
 
+The ingester writes progress to stdout and warnings and errors to stderr. It colors the output only on a terminal, and setting `NO_COLOR` turns the colors off.
+
 ## Ingester settings
 
 A command-line flag beats an environment variable, an environment variable beats the file, and the file beats the built-in default. An empty environment variable counts as unset.

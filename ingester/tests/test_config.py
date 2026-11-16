@@ -123,36 +123,37 @@ class ConfigLoadTest(unittest.TestCase):
 
 class CliConfigTest(unittest.TestCase):
     def run_cli(self, argv, **env):
-        out = io.StringIO()
+        out, err = io.StringIO(), io.StringIO()
         with (
             tempfile.TemporaryDirectory() as config_home,
             mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": config_home, **env}, clear=True),
             contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
             self.assertRaises(SystemExit) as ctx,
         ):
             cli.main(argv)
-        return ctx.exception.code, out.getvalue()
+        return ctx.exception.code, out.getvalue(), err.getvalue()
 
     def test_print_config_hides_password(self):
-        code, out = self.run_cli(["--print-config"], PG_PASS="secret")
+        code, out, _ = self.run_cli(["--print-config"], PG_PASS="secret")
         self.assertEqual(code, 0)
         self.assertIn("# config file: none", out)
         self.assertNotIn("secret", out)
 
     def test_missing_config_exits_2(self):
-        code, out = self.run_cli(["--config", "/nonexistent.yaml"])
+        code, _, err = self.run_cli(["--config", "/nonexistent.yaml"])
         self.assertEqual(code, 2)
-        self.assertIn("/nonexistent.yaml", out)
+        self.assertIn("/nonexistent.yaml", err)
 
     def test_zip_flag_reaches_the_import(self):
-        code, out = self.run_cli(["--zip", "/nonexistent.zip"], PG_PASS="pw")
+        code, _, err = self.run_cli(["--zip", "/nonexistent.zip"], PG_PASS="pw")
         self.assertEqual(code, 1)
-        self.assertIn("/nonexistent.zip", out)
+        self.assertIn("/nonexistent.zip", err)
 
     def test_bad_env_int_exits_2(self):
-        code, out = self.run_cli([], PG_PORT="abc")
+        code, _, err = self.run_cli([], PG_PORT="abc")
         self.assertEqual(code, 2)
-        self.assertIn("PG_PORT", out)
+        self.assertIn("PG_PORT", err)
 
 
 class GetConnectionTest(unittest.TestCase):

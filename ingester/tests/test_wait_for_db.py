@@ -29,19 +29,20 @@ class WaitForDbTest(unittest.TestCase):
         def sleep(seconds):
             clock[0] += seconds
 
-        out = io.StringIO()
+        out, err = io.StringIO(), io.StringIO()
         with (
             mock.patch.object(db, "get_connection", side_effect=connect),
             mock.patch.object(db.time, "monotonic", side_effect=lambda: clock[0]),
             mock.patch.object(db.time, "sleep", side_effect=sleep),
             contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
         ):
             try:
                 db.wait_for_db(DB_CFG)
                 code = None
             except SystemExit as e:
                 code = e.code
-        return code, out.getvalue(), attempts, clock[0]
+        return code, out.getvalue(), err.getvalue(), attempts, clock[0]
 
     def assertTimeoutsBounded(self, attempts):
         for timeout, remaining in attempts:
@@ -49,21 +50,21 @@ class WaitForDbTest(unittest.TestCase):
             self.assertLessEqual(timeout, max(2, math.ceil(remaining)))
 
     def test_gives_up_after_wait_timeout(self):
-        code, out, attempts, now = self.run_wait(failures=100)
+        code, _, err, attempts, now = self.run_wait(failures=100)
         self.assertEqual(code, 1)
-        self.assertIn("db.example:6543", out)
-        self.assertIn("5s", out)
-        self.assertIn("connection refused", out)
-        self.assertNotIn("Is the server running?", out)
+        self.assertIn("db.example:6543", err)
+        self.assertIn("5s", err)
+        self.assertIn("connection refused", err)
+        self.assertNotIn("Is the server running?", err)
         self.assertGreaterEqual(now, 100.0 + DB_CFG.wait_timeout)
         self.assertGreater(len(attempts), 1)
         self.assertTimeoutsBounded(attempts)
 
     def test_returns_when_the_second_attempt_succeeds(self):
-        code, out, attempts, _ = self.run_wait(failures=1)
+        code, out, err, attempts, _ = self.run_wait(failures=1)
         self.assertIsNone(code)
         self.assertEqual(len(attempts), 2)
-        self.assertIn("Waiting for PostgreSQL to be ready...", out)
+        self.assertIn("Waiting for PostgreSQL to be ready...", err)
         self.assertIn("PostgreSQL is ready.", out)
         self.assertTimeoutsBounded(attempts)
 

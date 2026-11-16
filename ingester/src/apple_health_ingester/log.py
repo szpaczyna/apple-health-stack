@@ -1,4 +1,7 @@
-"""Colorized console logger shared by the ingester modules."""
+"""Console logger shared by the ingester modules: info to stdout, warnings and errors to stderr."""
+
+import os
+import sys
 
 
 class _Colors:
@@ -10,19 +13,27 @@ class _Colors:
     RESET = '\033[0m'
 
 
+def _emit(stream, color, message):
+    # Flush so stdout progress and stderr warnings keep their order in pipes and Docker logs.
+    if os.environ.get("NO_COLOR") or not getattr(stream, "isatty", lambda: False)():
+        print(message, file=stream, flush=True)
+    else:
+        print(f"{color}{message}{_Colors.RESET}", file=stream, flush=True)
+
+
 class Logger:
-    """Simple logger for colorized console output."""
+    """Simple logger that colors output only on a terminal (see https://no-color.org)."""
     def info(self, message):
-        print(f"{_Colors.BLUE}{message}{_Colors.RESET}")
+        _emit(sys.stdout, _Colors.BLUE, message)
 
     def success(self, message):
-        print(f"{_Colors.GREEN}{message}{_Colors.RESET}")
+        _emit(sys.stdout, _Colors.GREEN, message)
 
     def warn(self, message):
-        print(f"{_Colors.YELLOW}{message}{_Colors.RESET}")
+        _emit(sys.stderr, _Colors.YELLOW, message)
 
     def error(self, message):
-        print(f"{_Colors.RED}{message}{_Colors.RESET}")
+        _emit(sys.stderr, _Colors.RED, message)
 
 
 logger = Logger()
