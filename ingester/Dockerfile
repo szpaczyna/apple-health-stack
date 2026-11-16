@@ -1,3 +1,11 @@
+FROM python:3.15-slim AS build
+
+WORKDIR /src
+
+COPY pyproject.toml ./
+COPY src/ ./src/
+RUN pip wheel --no-cache-dir --no-deps -w /wheels .
+
 FROM python:3.15-slim
 
 WORKDIR /app
@@ -9,9 +17,9 @@ RUN apt-get update && \
         libxslt1.1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-COPY src/ ./src/
-RUN pip install --no-cache-dir .
+# Bind-mount the wheel so it never lands in an image layer.
+RUN --mount=type=bind,from=build,source=/wheels,target=/wheels \
+    pip install --no-cache-dir /wheels/*.whl
 
 # The code stays root-owned; the ingester only writes the extracted GPX routes.
 RUN useradd --system --uid 10001 --no-create-home ingester
