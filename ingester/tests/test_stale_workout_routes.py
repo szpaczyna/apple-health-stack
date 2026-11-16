@@ -4,7 +4,7 @@ import unittest
 import zipfile
 from unittest import mock
 
-from apple_health_ingester import app
+from apple_health_ingester import routes as routes_module
 
 
 class ExtractWorkoutRoutesTest(unittest.TestCase):
@@ -25,9 +25,9 @@ class ExtractWorkoutRoutesTest(unittest.TestCase):
                 zf.writestr("apple_health_export/workout-routes/route_2026-01-01_new.gpx", "<gpx/>")
                 zf.writestr("apple_health_export/export.xml", "<HealthData/>")
 
-            with mock.patch.multiple(app, UNPACK_PATH=unpack, ROUTES_PATH=routes):
+            with mock.patch.multiple(routes_module, UNPACK_PATH=unpack, ROUTES_PATH=routes):
                 with zipfile.ZipFile(zip_path) as zf:
-                    count = app.extract_workout_routes(zf)
+                    count = routes_module.extract_workout_routes(zf)
 
             self.assertEqual(count, 1)
             self.assertEqual(os.listdir(routes), ["route_2026-01-01_new.gpx"])
@@ -41,9 +41,9 @@ class ExtractWorkoutRoutesTest(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as zf:
                 zf.writestr("apple_health_export/export.xml", "<HealthData/>")
 
-            with mock.patch.multiple(app, UNPACK_PATH=unpack, ROUTES_PATH=routes):
+            with mock.patch.multiple(routes_module, UNPACK_PATH=unpack, ROUTES_PATH=routes):
                 with zipfile.ZipFile(zip_path) as zf:
-                    self.assertEqual(app.extract_workout_routes(zf), 0)
+                    self.assertEqual(routes_module.extract_workout_routes(zf), 0)
             self.assertFalse(os.path.exists(routes))
 
 

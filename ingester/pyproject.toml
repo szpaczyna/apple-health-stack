@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-apple-health-ingester = "apple_health_ingester.app:main"
+apple-health-ingester = "apple_health_ingester.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2,7 +2,7 @@ import io
 import random
 import unittest
 
-from apple_health_ingester import app
+from apple_health_ingester import export_xml
 
 PROLOG = b'<?xml version="1.0"?>\n<!DOCTYPE HealthData [\n<!ELEMENT HealthData ANY>\n]>\n'
 FIRST = b' <HealthData locale="pl_PL">\n'
@@ -11,7 +11,7 @@ EXPECTED = FIRST + BODY
 
 
 def read_all(size: int) -> bytes:
-    stream = app._SkipToHealthData(io.BytesIO(PROLOG + EXPECTED))
+    stream = export_xml._SkipToHealthData(io.BytesIO(PROLOG + EXPECTED))
     if size < 0:
         return stream.read()
     out = bytearray()
@@ -31,14 +31,14 @@ class SkipToHealthDataTest(unittest.TestCase):
     def test_random_chunk_sizes(self):
         rnd = random.Random(1)
         for _ in range(50):
-            stream = app._SkipToHealthData(io.BytesIO(PROLOG + EXPECTED))
+            stream = export_xml._SkipToHealthData(io.BytesIO(PROLOG + EXPECTED))
             out = bytearray()
             while chunk := stream.read(rnd.randint(1, 300)):
                 out += chunk
             self.assertEqual(bytes(out), EXPECTED)
 
     def test_stream_without_a_prolog(self):
-        stream = app._SkipToHealthData(io.BytesIO(EXPECTED))
+        stream = export_xml._SkipToHealthData(io.BytesIO(EXPECTED))
         self.assertEqual(stream.read(), EXPECTED)
 
 

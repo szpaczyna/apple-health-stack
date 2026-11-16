@@ -4,7 +4,7 @@ import unittest
 import zipfile
 from unittest import mock
 
-from apple_health_ingester import app
+from apple_health_ingester import export_xml
 
 EXPORT_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE HealthData [
@@ -31,8 +31,8 @@ class HealthDataGeneratorTest(unittest.TestCase):
             zip_path = os.path.join(tmp, "export.zip")
             with zipfile.ZipFile(zip_path, "w") as zf:
                 zf.writestr("apple_health_export/export.xml", EXPORT_XML)
-            with mock.patch.object(app, "ZIP_PATH", zip_path):
-                rows = [row for _, row in app.health_data_generator("apple_health_export/export.xml")]
+            with mock.patch.object(export_xml, "ZIP_PATH", zip_path):
+                rows = [row for _, row in export_xml.health_data_generator("apple_health_export/export.xml")]
 
         self.assertEqual(
             [(r[0], r[2], r[3]) for r in rows],

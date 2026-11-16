@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from apple_health_ingester import app, db
+from apple_health_ingester import cli, db, export_xml, routes
 import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")
@@ -10,7 +10,7 @@ SLEEP = (None, "Watch", "Core", 1, None, None)
 
 
 def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None):
-    """Run app.main() with the zip and database replaced by fakes."""
+    """Run cli.main() with the zip and database replaced by fakes."""
     conn = mock.MagicMock(closed=False)
     if sources_error:
         conn.cursor.side_effect = sources_error
@@ -30,9 +30,17 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
         "process_workout_routes": mock.MagicMock(),
         "build_secondary_indexes": mock.MagicMock(return_value=(0.0, 0.0)),
     }
-    with mock.patch.multiple(app, **calls):
+    # Patch each name in the module that looks it up at call time.
+    export_xml_names = ("find_xml_file", "health_data_generator", "write_records_batch", "write_sleep_batch")
+    routes_names = ("write_routes_batch",)
+    cli_calls = {k: v for k, v in calls.items() if k not in export_xml_names + routes_names}
+    with (
+        mock.patch.multiple(cli, **cli_calls),
+        mock.patch.multiple(export_xml, **{k: calls[k] for k in export_xml_names}),
+        mock.patch.multiple(routes, **{k: calls[k] for k in routes_names}),
+    ):
         try:
-            app.main()
+            cli.main()
             calls["exit_code"] = 0
         except SystemExit as e:
             calls["exit_code"] = e.code
@@ -41,7 +49,7 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
 
 class AbortOnFailedWriteTest(unittest.TestCase):
     def test_failed_records_batch_mid_run_aborts(self):
-        with mock.patch.object(app, "BATCH_SIZE", 1):
+        with mock.patch.object(export_xml, "BATCH_SIZE", 1):
             calls = run_main([("record", RECORD)] * 3, records_ok=False)
         self.assertEqual(calls["exit_code"], 1)
         calls["process_workout_routes"].assert_not_called()
@@ -73,26 +81,26 @@ class RouteWriteFailureTest(unittest.TestCase):
         parsed = [("Route A", [("route-a",)])]
         write = mock.MagicMock(return_value=False)
         with mock.patch.multiple(
-            app,
+            routes,
             ROUTES_PATH=os.path.dirname(os.path.abspath(__file__)),
             get_gpx_workers=mock.MagicMock(return_value=1),
             parse_workout_route=mock.MagicMock(return_value=parsed),
             write_routes_batch=write,
-        ), mock.patch.object(app.os, "listdir", return_value=["a.gpx", "b.gpx"]):
+        ), mock.patch.object(routes.os, "listdir", return_value=["a.gpx", "b.gpx"]):
             with self.assertRaises(Exception):
-                app.process_workout_routes(mock.MagicMock())
+                routes.process_workout_routes(mock.MagicMock())
         write.assert_called_once()
 
     def test_unparsable_route_file_is_skipped(self):
         parse = mock.MagicMock(side_effect=ValueError("bad gpx"))
         with mock.patch.multiple(
-            app,
+            routes,
             ROUTES_PATH=os.path.dirname(os.path.abspath(__file__)),
             get_gpx_workers=mock.MagicMock(return_value=1),
             parse_workout_route=parse,
             write_routes_batch=mock.MagicMock(return_value=True),
-        ), mock.patch.object(app.os, "listdir", return_value=["a.gpx", "b.gpx"]):
-            app.process_workout_routes(mock.MagicMock())
+        ), mock.patch.object(routes.os, "listdir", return_value=["a.gpx", "b.gpx"]):
+            routes.process_workout_routes(mock.MagicMock())
         self.assertEqual(parse.call_count, 2)
 
 
@@ -102,7 +110,7 @@ class PushSourcesRetryTest(unittest.TestCase):
         copy = conn.cursor.return_value.__enter__.return_value.copy
         copy.side_effect = [psycopg.OperationalError("connection lost"), mock.MagicMock()]
         with mock.patch.object(db, "DB_RETRY_COOLDOWN", 0):
-            app.push_sources(conn, {"Watch", "iPhone"})
+            export_xml.push_sources(conn, {"Watch", "iPhone"})
         self.assertEqual(copy.call_count, 2)
         self.assertEqual(conn.ensure_open.call_count, 2)
         conn.discard_transaction.assert_called_once()

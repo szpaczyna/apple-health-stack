@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from apple_health_ingester import app
+from apple_health_ingester import errors, routes
 
 GPX = """<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
@@ -32,12 +32,12 @@ class ParallelRoutesTest(unittest.TestCase):
     def run_routes(self, write_ok: bool) -> mock.MagicMock:
         write = mock.MagicMock(return_value=write_ok)
         with mock.patch.multiple(
-            app,
+            routes,
             ROUTES_PATH=self.tmp.name,
             get_gpx_workers=mock.MagicMock(return_value=2),
             write_routes_batch=write,
         ):
-            app.process_workout_routes(mock.MagicMock())
+            routes.process_workout_routes(mock.MagicMock())
         return write
 
     def test_all_parsed_routes_are_written_and_a_broken_file_is_skipped(self):
@@ -46,7 +46,7 @@ class ParallelRoutesTest(unittest.TestCase):
         self.assertEqual(names, [f"route-{n}" for n in range(6)])
 
     def test_failed_write_aborts_the_pool(self):
-        with self.assertRaises(app.ImportAbortedError):
+        with self.assertRaises(errors.ImportAbortedError):
             self.run_routes(write_ok=False)
 
 
