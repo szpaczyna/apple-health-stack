@@ -5,7 +5,7 @@ import sys
 import time
 import zipfile
 
-from . import config
+from . import config, pgpass
 
 from .db import (
     ReconnectingConnection,
@@ -53,6 +53,14 @@ def main(argv=None):
         print(f"# config file: {config_path or 'none'}")
         print(config.to_yaml(cfg), end="")
         sys.exit(0)
+
+    db_cfg = cfg.database
+    if db_cfg.password is None:
+        passfile = pgpass.resolve_passfile(db_cfg, os.environ)
+        error = pgpass.check(passfile, db_cfg.host, db_cfg.port, db_cfg.dbname, db_cfg.user)
+        if error:
+            logger.error(error)
+            sys.exit(1)
 
     zip_path = cfg.import_.zip_path
     unpack_path = cfg.import_.unpack_dir or "./export"

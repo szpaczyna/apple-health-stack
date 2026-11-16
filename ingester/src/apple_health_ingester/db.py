@@ -1,4 +1,5 @@
 """PostgreSQL connection, schema and batch-write helpers for the ingester."""
+import os
 import re
 import time
 from importlib.resources import files
@@ -8,10 +9,11 @@ from psycopg import sql
 
 from .config import DatabaseConfig
 from .log import logger
+from .pgpass import resolve_passfile
 
 
 def get_connection(db_cfg: DatabaseConfig):
-    """Create a new database connection. Without a password libpq reads ~/.pgpass."""
+    """Create a new database connection. Without a password libpq reads the resolved passfile."""
     kwargs = {
         "host": db_cfg.host,
         "port": db_cfg.port,
@@ -20,6 +22,8 @@ def get_connection(db_cfg: DatabaseConfig):
     }
     if db_cfg.password is not None:
         kwargs["password"] = db_cfg.password
+    else:
+        kwargs["passfile"] = resolve_passfile(db_cfg, os.environ)
     return psycopg.connect(**kwargs)
 
 

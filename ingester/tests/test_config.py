@@ -145,7 +145,7 @@ class CliConfigTest(unittest.TestCase):
         self.assertIn("/nonexistent.yaml", out)
 
     def test_zip_flag_reaches_the_import(self):
-        code, out = self.run_cli(["--zip", "/nonexistent.zip"])
+        code, out = self.run_cli(["--zip", "/nonexistent.zip"], PG_PASS="pw")
         self.assertEqual(code, 1)
         self.assertIn("/nonexistent.zip", out)
 
@@ -157,13 +157,19 @@ class CliConfigTest(unittest.TestCase):
 
 class GetConnectionTest(unittest.TestCase):
     def test_kwargs_come_from_database_config(self):
-        db_cfg = DatabaseConfig(host="db", port=5433, user="u", dbname="d")
-        with mock.patch.object(db.psycopg, "connect") as connect:
+        db_cfg = DatabaseConfig(host="db", port=5433, user="u", dbname="d", passfile="/tmp/pgpass")
+        with mock.patch.object(db.psycopg, "connect") as connect, mock.patch.dict(os.environ, {}, clear=True):
             db.get_connection(db_cfg)
-            connect.assert_called_once_with(host="db", port=5433, user="u", dbname="d")
+            connect.assert_called_once_with(host="db", port=5433, user="u", dbname="d", passfile="/tmp/pgpass")
             connect.reset_mock()
             db.get_connection(dataclasses.replace(db_cfg, password="pw"))
             connect.assert_called_once_with(host="db", port=5433, user="u", dbname="d", password="pw")
+
+    def test_passfile_defaults_to_pgpassfile_env(self):
+        with mock.patch.object(db.psycopg, "connect") as connect, \
+                mock.patch.dict(os.environ, {"PGPASSFILE": "/etc/pgpass"}, clear=True):
+            db.get_connection(DatabaseConfig())
+        self.assertEqual(connect.call_args.kwargs["passfile"], "/etc/pgpass")
 
 
 class ResolveGpxWorkersTest(unittest.TestCase):
