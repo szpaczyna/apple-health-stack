@@ -1,5 +1,4 @@
 """PostgreSQL connection, schema and batch-write helpers for the ingester."""
-import os
 import re
 import time
 from importlib.resources import files
@@ -7,29 +6,20 @@ from importlib.resources import files
 import psycopg
 from psycopg import sql
 
+from .config import DatabaseConfig
 from .log import logger
 
-# --- Configuration ---
-PG_HOST = os.getenv("PG_HOST", "localhost")
-PG_PORT = int(os.getenv("PG_PORT", 5432))
-PG_USER = os.getenv("PG_USER", "postgres")
-PG_PASS = os.getenv("PG_PASS") or None  # None = use ~/.pgpass
-PG_DB = os.getenv("PG_DB", "health")
 
-DB_RETRY_COOLDOWN = int(os.getenv("DB_RETRY_COOLDOWN", 10))
-DB_MAX_RETRIES = int(os.getenv("DB_MAX_RETRIES", 5))
-
-
-def get_connection():
-    """Create a new database connection. Uses ~/.pgpass if PG_PASS is not set."""
+def get_connection(db_cfg: DatabaseConfig):
+    """Create a new database connection. Without a password libpq reads ~/.pgpass."""
     kwargs = {
-        "host": PG_HOST,
-        "port": PG_PORT,
-        "user": PG_USER,
-        "dbname": PG_DB,
+        "host": db_cfg.host,
+        "port": db_cfg.port,
+        "user": db_cfg.user,
+        "dbname": db_cfg.dbname,
     }
-    if PG_PASS is not None:
-        kwargs["password"] = PG_PASS
+    if db_cfg.password is not None:
+        kwargs["password"] = db_cfg.password
     return psycopg.connect(**kwargs)
 
 
@@ -41,8 +31,9 @@ class ReconnectingConnection:
     is delegated to the current psycopg connection.
     """
 
-    def __init__(self):
-        self._conn = get_connection()
+    def __init__(self, db_cfg: DatabaseConfig):
+        self.cfg = db_cfg
+        self._conn = get_connection(db_cfg)
 
     def __getattr__(self, name):
         return getattr(self._conn, name)
@@ -51,7 +42,7 @@ class ReconnectingConnection:
         """Reconnect if the current connection is closed or broken."""
         if self._conn.closed or self._conn.broken:
             logger.warn("Reconnecting to PostgreSQL...")
-            self._conn = get_connection()
+            self._conn = get_connection(self.cfg)
             logger.success("Reconnected to PostgreSQL.")
 
     def discard_transaction(self) -> None:
@@ -69,11 +60,11 @@ class ReconnectingConnection:
             self._conn.close()
 
 
-def wait_for_db():
+def wait_for_db(db_cfg: DatabaseConfig):
     """Wait until PostgreSQL is reachable."""
     while True:
         try:
-            conn = get_connection()
+            conn = get_connection(db_cfg)
             conn.close()
             logger.success("PostgreSQL is ready.")
             return
@@ -155,7 +146,8 @@ def write_batch(conn, table: str, columns: tuple[str, ...], rows: list[tuple], l
         sql.Identifier(table),
         sql.SQL(", ").join(map(sql.Identifier, columns)),
     )
-    for attempt in range(DB_MAX_RETRIES):
+    max_retries = conn.cfg.max_retries
+    for attempt in range(max_retries):
         try:
             conn.ensure_open()
             with conn.cursor() as cur:
@@ -165,10 +157,10 @@ def write_batch(conn, table: str, columns: tuple[str, ...], rows: list[tuple], l
             conn.commit()
             return True
         except (psycopg.OperationalError, psycopg.InterfaceError) as e:
-            logger.warn(f"DB write failed for {label} (attempt {attempt + 1}/{DB_MAX_RETRIES}): {e}")
+            logger.warn(f"DB write failed for {label} (attempt {attempt + 1}/{max_retries}): {e}")
             conn.discard_transaction()
-            if attempt + 1 < DB_MAX_RETRIES:
-                time.sleep(DB_RETRY_COOLDOWN)
+            if attempt + 1 < max_retries:
+                time.sleep(conn.cfg.retry_cooldown)
             else:
                 logger.error(f"Max retries reached for {label} batch.")
                 return False

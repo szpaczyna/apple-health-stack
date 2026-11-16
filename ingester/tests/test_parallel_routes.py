@@ -31,13 +31,8 @@ class ParallelRoutesTest(unittest.TestCase):
 
     def run_routes(self, write_ok: bool) -> mock.MagicMock:
         write = mock.MagicMock(return_value=write_ok)
-        with mock.patch.multiple(
-            routes,
-            ROUTES_PATH=self.tmp.name,
-            get_gpx_workers=mock.MagicMock(return_value=2),
-            write_routes_batch=write,
-        ):
-            routes.process_workout_routes(mock.MagicMock())
+        with mock.patch.object(routes, "write_routes_batch", write):
+            routes.process_workout_routes(mock.MagicMock(), self.tmp.name, 2)
         return write
 
     def test_all_parsed_routes_are_written_and_a_broken_file_is_skipped(self):

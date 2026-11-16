@@ -1,11 +1,12 @@
 import contextlib
+import dataclasses
 import io
 import os
 import tempfile
 import unittest
 from unittest import mock
 
-from apple_health_ingester import cli, config
+from apple_health_ingester import cli, config, db, routes
 from apple_health_ingester.config import Config, ConfigError, DatabaseConfig, ImportConfig
 
 DEFAULTS = Config(DatabaseConfig(), ImportConfig())
@@ -142,6 +143,34 @@ class CliConfigTest(unittest.TestCase):
         code, out = self.run_cli(["--config", "/nonexistent.yaml"])
         self.assertEqual(code, 2)
         self.assertIn("/nonexistent.yaml", out)
+
+    def test_zip_flag_reaches_the_import(self):
+        code, out = self.run_cli(["--zip", "/nonexistent.zip"])
+        self.assertEqual(code, 1)
+        self.assertIn("/nonexistent.zip", out)
+
+    def test_bad_env_int_exits_2(self):
+        code, out = self.run_cli([], PG_PORT="abc")
+        self.assertEqual(code, 2)
+        self.assertIn("PG_PORT", out)
+
+
+class GetConnectionTest(unittest.TestCase):
+    def test_kwargs_come_from_database_config(self):
+        db_cfg = DatabaseConfig(host="db", port=5433, user="u", dbname="d")
+        with mock.patch.object(db.psycopg, "connect") as connect:
+            db.get_connection(db_cfg)
+            connect.assert_called_once_with(host="db", port=5433, user="u", dbname="d")
+            connect.reset_mock()
+            db.get_connection(dataclasses.replace(db_cfg, password="pw"))
+            connect.assert_called_once_with(host="db", port=5433, user="u", dbname="d", password="pw")
+
+
+class ResolveGpxWorkersTest(unittest.TestCase):
+    def test_default_is_the_cpu_count(self):
+        with mock.patch.object(routes.os, "process_cpu_count", return_value=7):
+            self.assertEqual(routes.resolve_gpx_workers(None), 7)
+        self.assertEqual(routes.resolve_gpx_workers(3), 3)
 
 
 if __name__ == "__main__":

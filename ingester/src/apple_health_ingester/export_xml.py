@@ -6,6 +6,8 @@ from lxml import etree
 from typing import Generator
 import zipfile
 
+from .config import ImportConfig
+
 from .db import (
     SOURCES_COLUMNS,
     write_batch,
@@ -25,9 +27,6 @@ from .formatters import (
 from .log import logger
 
 # --- Configuration ---
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", 15000))
-
-ZIP_PATH = os.getenv("ZIP_PATH", "./export.zip")
 # Path of the export directory inside the zip archive (zip members always use "/")
 ZIP_EXPORT_DIR = "apple_health_export"
 EXPORT_XML_REGEX = re.compile(r"(export|导出)\.xml", re.IGNORECASE)
@@ -37,9 +36,9 @@ METADATA_RECORD_TYPES = {"HeadphoneAudioExposureEvent"}
 
 # --- XML processing ---
 
-def find_xml_file() -> str | None:
-    """Find the health export XML member inside the export zip."""
-    with zipfile.ZipFile(ZIP_PATH) as zip_ref:
+def find_xml_file(zip_path: str) -> str | None:
+    """Find the health export XML member inside the export zip at zip_path."""
+    with zipfile.ZipFile(zip_path) as zip_ref:
         for name in zip_ref.namelist():
             dirname, basename = posixpath.split(name)
             if dirname == ZIP_EXPORT_DIR and EXPORT_XML_REGEX.match(basename):
@@ -72,13 +71,13 @@ class _SkipToHealthData:
         return data
 
 
-def health_data_generator(xml_file: str) -> Generator[tuple, None, None]:
+def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None, None]:
     """
     Generator that yields (type, data) tuples from health data XML.
-    xml_file is the name of the XML member inside the export zip.
+    xml_file is the name of the XML member inside the export zip at zip_path.
     type is 'record', 'sleep', or 'workout'.
     """
-    with zipfile.ZipFile(ZIP_PATH) as zip_ref, zip_ref.open(xml_file) as f:
+    with zipfile.ZipFile(zip_path) as zip_ref, zip_ref.open(xml_file) as f:
         # Skip any leading non-XML data
         stream = _SkipToHealthData(f)
 
@@ -112,12 +111,13 @@ def health_data_generator(xml_file: str) -> Generator[tuple, None, None]:
                     del elem.getparent()[0]
 
 
-def process_health_data(conn) -> set[str]:
+def process_health_data(conn, import_cfg: ImportConfig) -> set[str]:
     """
     Process the main health data XML file and push data to PostgreSQL.
     Returns set of all data sources found.
     """
-    export_file = find_xml_file()
+    batch_size = import_cfg.batch_size
+    export_file = find_xml_file(import_cfg.zip_path)
     if not export_file:
         logger.warn("No export XML file found, skipping...")
         return set()
@@ -130,12 +130,12 @@ def process_health_data(conn) -> set[str]:
     total_records = 0
     total_sleep = 0
 
-    for data_type, row in health_data_generator(export_file):
+    for data_type, row in health_data_generator(import_cfg.zip_path, export_file):
         if data_type == "record":
             records_batch.append(row)
             # row[4] is device
             sources.add(row[4])
-            if len(records_batch) >= BATCH_SIZE:
+            if len(records_batch) >= batch_size:
                 if write_records_batch(conn, records_batch):
                     total_records += len(records_batch)
                     logger.success(f"  Inserted {total_records} records...")
@@ -147,7 +147,7 @@ def process_health_data(conn) -> set[str]:
             sleep_batch.append(row)
             # row[1] is device
             sources.add(row[1])
-            if len(sleep_batch) >= BATCH_SIZE:
+            if len(sleep_batch) >= batch_size:
                 if write_sleep_batch(conn, sleep_batch):
                     total_sleep += len(sleep_batch)
                     logger.success(f"  Inserted {total_sleep} sleep records...")

@@ -18,11 +18,13 @@ from .export_xml import ZIP_EXPORT_DIR
 from .log import logger
 
 # --- Configuration ---
-UNPACK_PATH = "./export"
-EXPORT_PATH = os.path.join(UNPACK_PATH, "apple_health_export")
-ROUTES_PATH = os.path.join(EXPORT_PATH, "workout-routes")
-# Paths of the same directories inside the zip archive (zip members always use "/")
+# Path of the routes directory inside the zip archive (zip members always use "/")
 ZIP_ROUTES_DIR = posixpath.join(ZIP_EXPORT_DIR, "workout-routes")
+
+
+def routes_dir(unpack_path: str) -> str:
+    """Directory that extract_workout_routes() fills under unpack_path."""
+    return os.path.join(unpack_path, "apple_health_export", "workout-routes")
 
 
 # --- Route processing ---
@@ -81,37 +83,28 @@ def write_workout_route(conn, tracks: list[tuple[str, list[tuple]]]) -> None:
             raise ImportAbortedError(f"route {track_name}")
 
 
-def get_gpx_workers() -> int:
-    """Number of GPX parser processes (GPX_WORKERS, default: usable CPUs)."""
-    value = os.getenv("GPX_WORKERS")
-    if value:
-        try:
-            workers = int(value)
-            if workers >= 1:
-                return workers
-        except ValueError:
-            pass
-        logger.warn(f"Invalid GPX_WORKERS={value!r}, using the CPU count")
-    return os.process_cpu_count() or 1
+def resolve_gpx_workers(configured: int | None) -> int:
+    """Number of GPX parser processes: the configured value, default usable CPUs."""
+    return configured or os.process_cpu_count() or 1
 
 
-def process_workout_routes(conn) -> None:
-    """Process all GPX workout route files.
+def process_workout_routes(conn, routes_path: str, workers: int) -> None:
+    """Process all GPX workout route files in routes_path.
 
     Files are parsed in worker processes; the main process writes the results
     as they complete, so file insert order is not deterministic. At most
     2 * workers parsed files are held in memory at a time.
     """
-    if not (os.path.exists(ROUTES_PATH) and os.path.isdir(ROUTES_PATH)):
+    if not os.path.isdir(routes_path):
         logger.warn("No workout routes found, skipping...")
         return
 
     route_files = [
-        os.path.join(ROUTES_PATH, file)
-        for file in os.listdir(ROUTES_PATH)
+        os.path.join(routes_path, file)
+        for file in os.listdir(routes_path)
         if file.endswith(".gpx")
     ]
-    workers = min(get_gpx_workers(), len(route_files)) or 1
+    workers = min(workers, len(route_files)) or 1
     logger.info(f"Loading workout routes ({len(route_files)} files, {workers} workers)...")
 
     if workers == 1:
@@ -154,14 +147,14 @@ def process_workout_routes(conn) -> None:
                     logger.error(f"Failed to process route {route_file}: {e}")
 
 
-def extract_workout_routes(zip_ref: zipfile.ZipFile) -> int:
-    """Extract only the GPX workout routes to ROUTES_PATH. Returns the file count."""
+def extract_workout_routes(zip_ref: zipfile.ZipFile, unpack_path: str) -> int:
+    """Extract only the GPX workout routes under unpack_path. Returns the file count."""
     # Routes left over from an earlier, larger export would be imported again.
-    shutil.rmtree(ROUTES_PATH, ignore_errors=True)
+    shutil.rmtree(routes_dir(unpack_path), ignore_errors=True)
     count = 0
     for name in zip_ref.namelist():
         dirname, basename = posixpath.split(name)
         if dirname == ZIP_ROUTES_DIR and basename.endswith(".gpx"):
-            zip_ref.extract(name, UNPACK_PATH)
+            zip_ref.extract(name, unpack_path)
             count += 1
     return count
