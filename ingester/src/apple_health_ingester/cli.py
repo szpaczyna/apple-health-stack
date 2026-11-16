@@ -1,7 +1,9 @@
 """Command-line entry point that imports an Apple Health export zip into PostgreSQL."""
 import argparse
+import contextlib
 import os
 import sys
+import tempfile
 import time
 import zipfile
 
@@ -62,8 +64,18 @@ def main(argv=None):
             logger.error(error)
             sys.exit(1)
 
+    unpack_dir = cfg.import_.unpack_dir
+    if unpack_dir:
+        unpack_location = contextlib.nullcontext(unpack_dir)
+    else:
+        unpack_location = tempfile.TemporaryDirectory(prefix="apple-health-ingester-")
+    with unpack_location as unpack_path:
+        run_import(cfg, unpack_path)
+
+
+def run_import(cfg, unpack_path):
+    """Extract the routes to unpack_path, then load the export into PostgreSQL."""
     zip_path = cfg.import_.zip_path
-    unpack_path = cfg.import_.unpack_dir or "./export"
     import_start = time.monotonic()
     # Open the zip; export.xml is streamed from it later, only GPX routes go to disk
     logger.info("Opening the export file...")

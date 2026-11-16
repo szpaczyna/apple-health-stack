@@ -1,6 +1,8 @@
 """PostgreSQL connection, schema and batch-write helpers for the ingester."""
+import math
 import os
 import re
+import sys
 import time
 from importlib.resources import files
 
@@ -12,7 +14,7 @@ from .log import logger
 from .pgpass import resolve_passfile
 
 
-def get_connection(db_cfg: DatabaseConfig):
+def get_connection(db_cfg: DatabaseConfig, connect_timeout: int | None = None):
     """Create a new database connection. Without a password libpq reads the resolved passfile."""
     kwargs = {
         "host": db_cfg.host,
@@ -24,6 +26,8 @@ def get_connection(db_cfg: DatabaseConfig):
         kwargs["password"] = db_cfg.password
     else:
         kwargs["passfile"] = resolve_passfile(db_cfg, os.environ)
+    if connect_timeout is not None:
+        kwargs["connect_timeout"] = connect_timeout
     return psycopg.connect(**kwargs)
 
 
@@ -65,16 +69,27 @@ class ReconnectingConnection:
 
 
 def wait_for_db(db_cfg: DatabaseConfig):
-    """Wait until PostgreSQL is reachable."""
+    """Wait until PostgreSQL is reachable; exit with status 1 after db_cfg.wait_timeout seconds."""
+    deadline = time.monotonic() + db_cfg.wait_timeout
     while True:
+        remaining = deadline - time.monotonic()
         try:
-            conn = get_connection(db_cfg)
+            # libpq treats connect_timeout values below 2 as 2.
+            conn = get_connection(db_cfg, connect_timeout=max(2, math.ceil(remaining)))
             conn.close()
             logger.success("PostgreSQL is ready.")
             return
-        except psycopg.OperationalError:
-            logger.warn("Waiting for PostgreSQL to be ready...")
-            time.sleep(2)
+        except psycopg.OperationalError as e:
+            last_error = str(e).splitlines()[0] if str(e) else type(e).__name__
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            logger.error(
+                f"PostgreSQL at {db_cfg.host}:{db_cfg.port} is not reachable after "
+                f"{db_cfg.wait_timeout}s: {last_error}"
+            )
+            sys.exit(1)
+        logger.warn("Waiting for PostgreSQL to be ready...")
+        time.sleep(min(2, remaining))
 
 
 # Secondary indexes are the plain (non-unique) CREATE INDEX statements in the

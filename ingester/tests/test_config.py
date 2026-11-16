@@ -165,6 +165,14 @@ class GetConnectionTest(unittest.TestCase):
             db.get_connection(dataclasses.replace(db_cfg, password="pw"))
             connect.assert_called_once_with(host="db", port=5433, user="u", dbname="d", password="pw")
 
+    def test_connect_timeout_is_passed_only_when_given(self):
+        db_cfg = DatabaseConfig(password="pw")
+        with mock.patch.object(db.psycopg, "connect") as connect:
+            db.get_connection(db_cfg)
+            self.assertNotIn("connect_timeout", connect.call_args.kwargs)
+            db.get_connection(db_cfg, connect_timeout=7)
+            self.assertEqual(connect.call_args.kwargs["connect_timeout"], 7)
+
     def test_passfile_defaults_to_pgpassfile_env(self):
         with mock.patch.object(db.psycopg, "connect") as connect, \
                 mock.patch.dict(os.environ, {"PGPASSFILE": "/etc/pgpass"}, clear=True):

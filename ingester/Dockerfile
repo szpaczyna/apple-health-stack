@@ -14,8 +14,7 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir .
 
 # The code stays root-owned; the ingester only writes the extracted GPX routes.
-RUN useradd --system --uid 10001 --no-create-home ingester \
-    && install -d -o ingester -g ingester /app/export
+RUN useradd --system --uid 10001 --no-create-home ingester
 USER ingester
 
 # Export zip should be mounted at /app/export.zip

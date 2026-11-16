@@ -12,14 +12,15 @@ SLEEP = (None, "Watch", "Core", 1, None, None)
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None, env=None):
-    """Run cli.main() with the zip and database replaced by fakes."""
+def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None, env=None,
+             on_extract=None):
+    """Run cli.main() with the zip and database replaced by fakes; on_extract(zip, path) replaces the extraction."""
     conn = mock.MagicMock(closed=False)
     if sources_error:
         conn.cursor.side_effect = sources_error
     calls = {
         "zipfile": mock.MagicMock(),
-        "extract_workout_routes": mock.MagicMock(return_value=0),
+        "extract_workout_routes": mock.MagicMock(return_value=0, side_effect=on_extract),
         "wait_for_db": mock.MagicMock(),
         "ReconnectingConnection": mock.MagicMock(return_value=conn),
         "init_schema": mock.MagicMock(),
