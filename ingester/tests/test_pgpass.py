@@ -90,22 +90,22 @@ class CliPassfileCheckTest(unittest.TestCase):
             zip_path = os.path.join(tmp, "export.zip")
             zipfile.ZipFile(zip_path, "w").close()
             passfile = os.path.join(tmp, "missing")
-            out = io.StringIO()
+            err = io.StringIO()
             environ = {"XDG_CONFIG_HOME": tmp, "PG_PASSFILE": passfile, "UNPACK_DIR": tmp, **env}
             with (
                 mock.patch.dict(os.environ, environ, clear=True),
                 mock.patch.object(cli, "wait_for_db", side_effect=SystemExit(3)),
                 mock.patch.object(pgpass, "check", wraps=pgpass.check) as check,
-                contextlib.redirect_stdout(out),
+                contextlib.redirect_stderr(err),
                 self.assertRaises(SystemExit) as raised,
             ):
                 cli.main(["--zip", zip_path])
-            return raised.exception.code, out.getvalue(), passfile, check
+            return raised.exception.code, err.getvalue(), passfile, check
 
     def test_missing_passfile_exits_before_connecting(self):
-        code, out, passfile, _ = self.run_main()
+        code, err, passfile, _ = self.run_main()
         self.assertEqual(code, 1)
-        self.assertIn(passfile, out)
+        self.assertIn(passfile, err)
 
     def test_password_skips_the_check(self):
         code, _, _, check = self.run_main(PG_PASS="pw")
