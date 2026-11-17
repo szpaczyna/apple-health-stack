@@ -126,9 +126,8 @@ def process_workout_routes(conn, routes_path: str, workers: int) -> None:
             if route_file is not None:
                 try:
                     future = executor.submit(_parse_workout_route_worker, route_file)
-                except BrokenProcessPool as e:
-                    logger.error(f"Failed to process route {route_file}: {e}")
-                    return
+                except BrokenProcessPool:
+                    raise ImportAbortedError("routes (a GPX parser process died)") from None
                 in_flight[future] = route_file
 
         for _ in range(2 * workers):
@@ -143,6 +142,8 @@ def process_workout_routes(conn, routes_path: str, workers: int) -> None:
                     write_workout_route(conn, future.result())
                 except ImportAbortedError:
                     raise
+                except BrokenProcessPool:
+                    raise ImportAbortedError("routes (a GPX parser process died)") from None
                 except Exception as e:
                     logger.error(f"Failed to process route {route_file}: {e}")
 
