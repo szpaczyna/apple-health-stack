@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS sleep_analysis (
     id          BIGSERIAL PRIMARY KEY,
     time        TIMESTAMPTZ NOT NULL,
     device      VARCHAR(256),
-    state       VARCHAR(32),             -- Deep, Core, REM, Asleep, Awake
-    state_value INTEGER NOT NULL,        -- numeric representation (0=Deep, 1=Core, 2=REM, 3=Asleep, 4=Awake)
+    state       VARCHAR(32),             -- Deep, Core, REM, InBed, Awake, Asleep
+    state_value INTEGER NOT NULL,        -- numeric representation (0=Deep, 1=Core, 2=REM, 3=InBed, 4=Awake, 5=Asleep)
     start_time  TIMESTAMPTZ NOT NULL,
     end_time    TIMESTAMPTZ NOT NULL
 );
