@@ -35,13 +35,13 @@ class ParallelRoutesTest(unittest.TestCase):
 
     def run_routes(self, write_ok: bool) -> mock.MagicMock:
         write = mock.MagicMock(return_value=write_ok)
-        with mock.patch.object(routes, "write_routes_batch", write):
+        with mock.patch.object(routes, "write_batch", write):
             routes.process_workout_routes(mock.MagicMock(), self.tmp.name, 2)
         return write
 
     def test_all_parsed_routes_are_written_and_a_broken_file_is_skipped(self):
         write = self.run_routes(write_ok=True)
-        names = sorted(call.args[1][0][0] for call in write.call_args_list)
+        names = sorted(call.args[2][0][0] for call in write.call_args_list)
         self.assertEqual(names, [f"route-{n}" for n in range(6)])
 
     def test_failed_write_aborts_the_pool(self):

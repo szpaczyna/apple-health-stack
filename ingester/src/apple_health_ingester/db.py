@@ -113,18 +113,20 @@ def truncate_tables(conn):
     logger.warn("All health tables truncated.")
 
 
-RECORDS_COLUMNS = ("measurement", "time", "value", "unit", "device")
-SLEEP_COLUMNS = ("time", "device", "state", "state_value", "start_time", "end_time")
-ROUTES_COLUMNS = ("workout", "time", "latitude", "longitude", "elevation", "speed", "distance")
+COLUMNS = {
+    "records": ("measurement", "time", "value", "unit", "device"),
+    "sleep_analysis": ("time", "device", "state", "state_value", "start_time", "end_time"),
+    "workout_routes": ("workout", "time", "latitude", "longitude", "elevation", "speed", "distance"),
+}
 
 
-def write_batch(conn, table: str, columns: tuple[str, ...], rows: list[tuple], label: str) -> bool:
+def write_batch(conn, table: str, rows: list[tuple]) -> bool:
     """Batch-insert rows into table using COPY in one transaction; return False on failure."""
     if not rows:
         return True
     copy_sql = sql.SQL("COPY {} ({}) FROM STDIN").format(
         sql.Identifier(table),
-        sql.SQL(", ").join(map(sql.Identifier, columns)),
+        sql.SQL(", ").join(map(sql.Identifier, COLUMNS[table])),
     )
     try:
         with conn.cursor() as cur:
@@ -134,17 +136,5 @@ def write_batch(conn, table: str, columns: tuple[str, ...], rows: list[tuple], l
         conn.commit()
         return True
     except Exception as e:
-        logger.error(f"DB write failed for {label}: {e}")
+        logger.error(f"DB write failed for {table}: {e}")
         return False
-
-
-def write_records_batch(conn, records: list[tuple]) -> bool:
-    return write_batch(conn, "records", RECORDS_COLUMNS, records, "records")
-
-
-def write_sleep_batch(conn, sleep_records: list[tuple]) -> bool:
-    return write_batch(conn, "sleep_analysis", SLEEP_COLUMNS, sleep_records, "sleep")
-
-
-def write_routes_batch(conn, route_points: list[tuple]) -> bool:
-    return write_batch(conn, "workout_routes", ROUTES_COLUMNS, route_points, "routes")
