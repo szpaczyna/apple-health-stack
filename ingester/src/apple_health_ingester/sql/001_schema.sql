@@ -35,10 +35,7 @@ CREATE TABLE IF NOT EXISTS workout_routes (
     distance    DOUBLE PRECISION
 );
 
--- Track which data sources have been ingested
-CREATE TABLE IF NOT EXISTS data_sources (
-    device      VARCHAR(256) PRIMARY KEY
-);
+DROP TABLE IF EXISTS data_sources;
 
 -- Indexes optimized for Grafana time-series queries
 -- The ingester drops every "CREATE INDEX IF NOT EXISTS" index below before the
