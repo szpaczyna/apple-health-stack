@@ -361,7 +361,7 @@
           "format": "time_series",
           "hide": false,
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  max(v) AS distance\nFROM (\n  SELECT\n    $__timeGroupAlias(time, $__interval),\n    device,\n    sum(value) AS v\n  FROM records\n  WHERE measurement = 'DistanceWalkingRunning'\n    AND $__timeFilter(time)\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  max(v) AS distance\nFROM (\n  SELECT\n    $__timeGroupAlias(time, $__interval),\n    device,\n    sum(CASE unit WHEN 'km' THEN value WHEN 'm' THEN value / 1000 WHEN 'mi' THEN value * 1.609344 WHEN 'yd' THEN value * 0.0009144 END) AS v\n  FROM records\n  WHERE measurement = 'DistanceWalkingRunning'\n    AND $__timeFilter(time)\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
           "refId": "B"
         }
       ],
