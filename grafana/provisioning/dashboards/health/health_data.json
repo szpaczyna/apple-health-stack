@@ -326,6 +326,7 @@
         "y": 14
       },
       "id": 2,
+      "interval": "1h",
       "options": {
         "legend": {
           "calcs": [],
@@ -348,7 +349,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  sum(value) AS steps\nFROM records\nWHERE measurement = 'StepCount'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  max(v) AS steps\nFROM (\n  SELECT\n    $__timeGroupAlias(time, $__interval),\n    device,\n    sum(value) AS v\n  FROM records\n  WHERE measurement = 'StepCount'\n    AND $__timeFilter(time)\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
           "refId": "A"
         },
         {
@@ -360,7 +361,7 @@
           "format": "time_series",
           "hide": false,
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, $__interval),\n  sum(value) AS distance\nFROM records\nWHERE measurement = 'DistanceWalkingRunning'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  max(v) AS distance\nFROM (\n  SELECT\n    $__timeGroupAlias(time, $__interval),\n    device,\n    sum(value) AS v\n  FROM records\n  WHERE measurement = 'DistanceWalkingRunning'\n    AND $__timeFilter(time)\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
           "refId": "B"
         }
       ],

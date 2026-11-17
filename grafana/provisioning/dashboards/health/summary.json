@@ -137,7 +137,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT now() AS time, sum(value) AS \"Walked/ran distance (km)\" FROM records WHERE measurement = 'DistanceWalkingRunning' AND ($__timeFilter(time)) AND (device ~ '^${source:regex}$')",
+          "rawSql": "SELECT now() AS time, sum(m) AS \"Walked/ran distance (km)\" FROM (SELECT max(v) AS m FROM (SELECT date_trunc('day', time) AS day, device, sum(value) AS v FROM records WHERE measurement = 'DistanceWalkingRunning' AND ($__timeFilter(time)) AND (device ~ '^${source:regex}$') GROUP BY 1, 2) d GROUP BY day) x",
           "refId": "C",
           "hide": false
         },
@@ -161,7 +161,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT now() AS time, sum(value) AS \"Steps\" FROM records WHERE measurement = 'StepCount' AND ($__timeFilter(time)) AND (device ~ '^${source:regex}$')",
+          "rawSql": "SELECT now() AS time, sum(m) AS \"Steps\" FROM (SELECT max(v) AS m FROM (SELECT date_trunc('day', time) AS day, device, sum(value) AS v FROM records WHERE measurement = 'StepCount' AND ($__timeFilter(time)) AND (device ~ '^${source:regex}$') GROUP BY 1, 2) d GROUP BY day) x",
           "refId": "F",
           "hide": false
         },
@@ -327,7 +327,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS distance\nFROM records\nWHERE measurement = 'DistanceWalkingRunning'\n  AND $__timeFilter(time)\n  AND (device ~ '^${source:regex}$')\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  max(v) AS distance\nFROM (\n  SELECT\n    date_trunc('day', time) AS time,\n    device,\n    sum(value) AS v\n  FROM records\n  WHERE measurement = 'DistanceWalkingRunning'\n    AND $__timeFilter(time)\n    AND (device ~ '^${source:regex}$')\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -513,7 +513,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS steps\nFROM records\nWHERE measurement = 'StepCount'\n  AND $__timeFilter(time)\n  AND (device ~ '^${source:regex}$')\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  max(v) AS steps\nFROM (\n  SELECT\n    date_trunc('day', time) AS time,\n    device,\n    sum(value) AS v\n  FROM records\n  WHERE measurement = 'StepCount'\n    AND $__timeFilter(time)\n    AND (device ~ '^${source:regex}$')\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
