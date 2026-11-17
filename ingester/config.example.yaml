@@ -5,8 +5,6 @@ database:
   dbname: health           # PG_DB
   password: null           # PG_PASS; prefer passfile
   passfile: null           # PG_PASSFILE, then PGPASSFILE, then ~/.pgpass
-  max_retries: 5           # DB_MAX_RETRIES
-  retry_cooldown: 10       # DB_RETRY_COOLDOWN, seconds
   wait_timeout: 120        # DB_WAIT_TIMEOUT, seconds
 import:
   zip_path: ./export.zip   # ZIP_PATH, --zip

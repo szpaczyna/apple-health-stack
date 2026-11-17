@@ -31,43 +31,6 @@ def get_connection(db_cfg: DatabaseConfig, connect_timeout: int | None = None):
     return psycopg.connect(**kwargs)
 
 
-class ReconnectingConnection:
-    """
-    Wrapper around a psycopg connection that can replace a dropped connection
-    in place, so every caller holding this object keeps working after a
-    reconnect. Everything else (cursor, commit, rollback, close, closed, ...)
-    is delegated to the current psycopg connection.
-    """
-
-    def __init__(self, db_cfg: DatabaseConfig):
-        self.cfg = db_cfg
-        self._conn = get_connection(db_cfg)
-
-    def __getattr__(self, name):
-        return getattr(self._conn, name)
-
-    def ensure_open(self) -> None:
-        """Reconnect if the current connection is closed or broken."""
-        if self._conn.closed or self._conn.broken:
-            logger.warn("Reconnecting to PostgreSQL...")
-            self._conn = get_connection(self.cfg)
-            logger.success("Reconnected to PostgreSQL.")
-
-    def discard_transaction(self) -> None:
-        """
-        Roll back the failed transaction if the connection is still usable,
-        otherwise close it so that ensure_open() reconnects. Never raises.
-        """
-        try:
-            if self._conn.closed or self._conn.broken:
-                self._conn.close()
-            else:
-                self._conn.rollback()
-        except psycopg.Error as e:
-            logger.warn(f"Rollback failed, dropping the connection: {e}")
-            self._conn.close()
-
-
 def wait_for_db(db_cfg: DatabaseConfig):
     """Wait until PostgreSQL is reachable; exit with status 1 after db_cfg.wait_timeout seconds."""
     deadline = time.monotonic() + db_cfg.wait_timeout
@@ -158,36 +121,23 @@ SOURCES_COLUMNS = ("device",)
 
 
 def write_batch(conn, table: str, columns: tuple[str, ...], rows: list[tuple], label: str) -> bool:
-    """Batch-insert rows into table using COPY, retrying on connection errors."""
+    """Batch-insert rows into table using COPY in one transaction; return False on failure."""
     if not rows:
         return True
     copy_sql = sql.SQL("COPY {} ({}) FROM STDIN").format(
         sql.Identifier(table),
         sql.SQL(", ").join(map(sql.Identifier, columns)),
     )
-    max_retries = conn.cfg.max_retries
-    for attempt in range(max_retries):
-        try:
-            conn.ensure_open()
-            with conn.cursor() as cur:
-                with cur.copy(copy_sql) as copy:
-                    for row in rows:
-                        copy.write_row(row)
-            conn.commit()
-            return True
-        except (psycopg.OperationalError, psycopg.InterfaceError) as e:
-            logger.warn(f"DB write failed for {label} (attempt {attempt + 1}/{max_retries}): {e}")
-            conn.discard_transaction()
-            if attempt + 1 < max_retries:
-                time.sleep(conn.cfg.retry_cooldown)
-            else:
-                logger.error(f"Max retries reached for {label} batch.")
-                return False
-        except Exception as e:
-            logger.error(f"Unexpected error writing {label}: {e}")
-            conn.discard_transaction()
-            return False
-    return False
+    try:
+        with conn.cursor() as cur:
+            with cur.copy(copy_sql) as copy:
+                for row in rows:
+                    copy.write_row(row)
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"DB write failed for {label}: {e}")
+        return False
 
 
 def write_records_batch(conn, records: list[tuple]) -> bool:

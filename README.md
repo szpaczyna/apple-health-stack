@@ -69,7 +69,7 @@ Grafana expands `$NAME` in provisioning files, so a `$` in `GRAFANA_DB_PASSWORD`
 3. Loads records and sleep data with `COPY`, then parses the GPX routes in parallel.
 4. Rebuilds the indexes, runs `ANALYZE`, and prints how long each step took.
 
-The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. If the connection drops during the import, the ingester reconnects and retries the failed batch.
+The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. A failed write stops the import with exit status 1. Run the import again; each run truncates the tables and reloads the whole export.
 
 Schema: `ingester/src/apple_health_ingester/sql/001_schema.sql`.
 
@@ -126,8 +126,6 @@ apple-health-ingester --print-config
 | `database.dbname` | `PG_DB` | `health` | Database name; it must exist |
 | `database.password` | `PG_PASS` | unset, which uses a pgpass file | PostgreSQL password |
 | `database.passfile` | `PG_PASSFILE` | unset, then `PGPASSFILE`, then `~/.pgpass` | Password file used without a password |
-| `database.max_retries` | `DB_MAX_RETRIES` | `5` | Attempts per failed batch |
-| `database.retry_cooldown` | `DB_RETRY_COOLDOWN` | `10` | Seconds between attempts |
 | `database.wait_timeout` | `DB_WAIT_TIMEOUT` | `120` | Seconds to wait for PostgreSQL at startup |
 | `import.zip_path` | `ZIP_PATH`, `--zip` | `./export.zip` (`/app/export.zip` in the image) | Path to the export |
 | `import.batch_size` | `BATCH_SIZE` | `15000` | Rows per `COPY` batch |

@@ -11,9 +11,9 @@ import zipfile
 from . import config, pgpass
 
 from .db import (
-    ReconnectingConnection,
     build_secondary_indexes,
     drop_secondary_indexes,
+    get_connection,
     init_schema,
     truncate_tables,
     wait_for_db,
@@ -108,7 +108,7 @@ def run_import(cfg, unpack_path):
 
     # Connect to PostgreSQL
     wait_for_db(cfg.database)
-    conn = ReconnectingConnection(cfg.database)
+    conn = get_connection(cfg.database)
 
     # Initialize schema and truncate for fresh import
     init_schema(conn)

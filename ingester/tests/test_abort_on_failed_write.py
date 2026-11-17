@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 
 from apple_health_ingester import cli, export_xml, routes
-from apple_health_ingester.config import DatabaseConfig
+from apple_health_ingester.errors import ImportAbortedError
 import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")
@@ -15,14 +15,14 @@ TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None, env=None,
              on_extract=None, xml_file="apple_health_export/export.xml"):
     """Run cli.main() with the zip and database replaced by fakes; on_extract(zip, path) replaces the extraction."""
-    conn = mock.MagicMock(closed=False)
+    conn = mock.MagicMock()
     if sources_error:
         conn.cursor.side_effect = sources_error
     calls = {
         "zipfile": mock.MagicMock(),
         "extract_workout_routes": mock.MagicMock(return_value=0, side_effect=on_extract),
         "wait_for_db": mock.MagicMock(),
-        "ReconnectingConnection": mock.MagicMock(return_value=conn),
+        "get_connection": mock.MagicMock(return_value=conn),
         "init_schema": mock.MagicMock(),
         "truncate_tables": mock.MagicMock(),
         "drop_secondary_indexes": mock.MagicMock(),
@@ -111,17 +111,15 @@ class RouteWriteFailureTest(unittest.TestCase):
         self.assertEqual(parse.call_count, 2)
 
 
-class PushSourcesRetryTest(unittest.TestCase):
-    def test_dropped_connection_is_retried(self):
+class PushSourcesFailureTest(unittest.TestCase):
+    def test_dropped_connection_aborts_without_retry(self):
         conn = mock.MagicMock()
-        conn.cfg = DatabaseConfig(retry_cooldown=0)
         copy = conn.cursor.return_value.__enter__.return_value.copy
-        copy.side_effect = [psycopg.OperationalError("connection lost"), mock.MagicMock()]
-        export_xml.push_sources(conn, {"Watch", "iPhone"})
-        self.assertEqual(copy.call_count, 2)
-        self.assertEqual(conn.ensure_open.call_count, 2)
-        conn.discard_transaction.assert_called_once()
-        conn.commit.assert_called_once()
+        copy.side_effect = psycopg.OperationalError("connection lost")
+        with self.assertRaises(ImportAbortedError):
+            export_xml.push_sources(conn, {"Watch", "iPhone"})
+        copy.assert_called_once()
+        conn.commit.assert_not_called()
 
 
 if __name__ == "__main__":
