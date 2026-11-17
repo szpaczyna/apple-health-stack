@@ -149,7 +149,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT now() AS time, sum(value) AS \"Flights climbed\" FROM records WHERE measurement = 'FlightsClimbed' AND ($__timeFilter(time)) AND (device ~ '^${source:regex}$')",
+          "rawSql": "SELECT now() AS time, sum(m) AS \"Flights climbed\" FROM (SELECT max(v) AS m FROM (SELECT date_trunc('day', time) AS day, device, sum(value) AS v FROM records WHERE measurement = 'FlightsClimbed' AND ($__timeFilter(time)) AND (device ~ '^${source:regex}$') GROUP BY 1, 2) d GROUP BY day) x",
           "refId": "D",
           "hide": false
         },
@@ -793,7 +793,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS flights\nFROM records\nWHERE measurement = 'FlightsClimbed'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  max(v) AS flights\nFROM (\n  SELECT\n    date_trunc('day', time) AS time,\n    device,\n    sum(value) AS v\n  FROM records\n  WHERE measurement = 'FlightsClimbed'\n    AND $__timeFilter(time)\n  GROUP BY 1, 2\n) d\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
