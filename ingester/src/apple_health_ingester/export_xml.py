@@ -8,10 +8,7 @@ import zipfile
 
 from .config import ImportConfig
 
-from .db import (
-    write_records_batch,
-    write_sleep_batch,
-)
+from .db import write_batch
 
 from .errors import ImportAbortedError
 
@@ -124,7 +121,7 @@ def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> Non
         if data_type == "record":
             records_batch.append(row)
             if len(records_batch) >= batch_size:
-                if write_records_batch(conn, records_batch):
+                if write_batch(conn, "records", records_batch):
                     total_records += len(records_batch)
                     logger.success(f"  Inserted {total_records} records...")
                     records_batch = []
@@ -134,7 +131,7 @@ def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> Non
         elif data_type == "sleep":
             sleep_batch.append(row)
             if len(sleep_batch) >= batch_size:
-                if write_sleep_batch(conn, sleep_batch):
+                if write_batch(conn, "sleep_analysis", sleep_batch):
                     total_sleep += len(sleep_batch)
                     logger.success(f"  Inserted {total_sleep} sleep records...")
                     sleep_batch = []
@@ -143,11 +140,11 @@ def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> Non
 
     # Flush remaining
     if records_batch:
-        if not write_records_batch(conn, records_batch):
+        if not write_batch(conn, "records", records_batch):
             raise ImportAbortedError("records batch")
         total_records += len(records_batch)
     if sleep_batch:
-        if not write_sleep_batch(conn, sleep_batch):
+        if not write_batch(conn, "sleep_analysis", sleep_batch):
             raise ImportAbortedError("sleep batch")
         total_sleep += len(sleep_batch)
 

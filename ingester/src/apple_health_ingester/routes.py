@@ -9,7 +9,7 @@ from concurrent.futures.process import BrokenProcessPool
 import gpxpy
 from gpxpy.gpx import GPXTrackPoint
 
-from .db import write_routes_batch
+from .db import write_batch
 
 from .errors import ImportAbortedError
 
@@ -79,7 +79,7 @@ def write_workout_route(conn, tracks: list[tuple[str, list[tuple]]]) -> None:
     """Insert the parsed tracks of one GPX file."""
     for track_name, track_points in tracks:
         logger.info(f"  Route: {track_name}")
-        if not write_routes_batch(conn, track_points):
+        if not write_batch(conn, "workout_routes", track_points):
             raise ImportAbortedError(f"route {track_name}")
 
 
