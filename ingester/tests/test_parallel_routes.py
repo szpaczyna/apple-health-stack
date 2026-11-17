@@ -17,6 +17,10 @@ GPX = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+def crash_worker(route_file):
+    os._exit(1)
+
+
 class ParallelRoutesTest(unittest.TestCase):
     """Runs the process-pool path, with GPX parsing in real worker processes."""
 
@@ -43,6 +47,11 @@ class ParallelRoutesTest(unittest.TestCase):
     def test_failed_write_aborts_the_pool(self):
         with self.assertRaises(errors.ImportAbortedError):
             self.run_routes(write_ok=False)
+
+    def test_crashed_worker_aborts_the_import(self):
+        with mock.patch.object(routes, "_parse_workout_route_worker", crash_worker):
+            with self.assertRaises(errors.ImportAbortedError):
+                self.run_routes(write_ok=True)
 
 
 if __name__ == "__main__":
