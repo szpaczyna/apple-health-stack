@@ -3,8 +3,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from apple_health_ingester import cli, export_xml, routes
-from apple_health_ingester.errors import ImportAbortedError
+from apple_health_ingester import cli, db, export_xml, routes
 import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")
@@ -12,12 +11,10 @@ SLEEP = (None, "Watch", "Core", 1, None, None)
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None, env=None,
+def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, env=None,
              on_extract=None, xml_file="apple_health_export/export.xml"):
     """Run cli.main() with the zip and database replaced by fakes; on_extract(zip, path) replaces the extraction."""
     conn = mock.MagicMock()
-    if sources_error:
-        conn.cursor.side_effect = sources_error
     calls = {
         "zipfile": mock.MagicMock(),
         "extract_workout_routes": mock.MagicMock(return_value=0, side_effect=on_extract),
@@ -71,11 +68,6 @@ class AbortOnFailedWriteTest(unittest.TestCase):
         self.assertEqual(calls["exit_code"], 1)
         calls["build_secondary_indexes"].assert_not_called()
 
-    def test_failed_data_sources_insert_aborts(self):
-        calls = run_main([("record", RECORD)], sources_error=RuntimeError("boom"))
-        self.assertEqual(calls["exit_code"], 1)
-        calls["process_workout_routes"].assert_not_called()
-
     def test_successful_import_builds_indexes(self):
         calls = run_main([("record", RECORD), ("sleep", SLEEP)])
         self.assertEqual(calls["exit_code"], 0)
@@ -111,13 +103,12 @@ class RouteWriteFailureTest(unittest.TestCase):
         self.assertEqual(parse.call_count, 2)
 
 
-class PushSourcesFailureTest(unittest.TestCase):
-    def test_dropped_connection_aborts_without_retry(self):
+class WriteBatchFailureTest(unittest.TestCase):
+    def test_dropped_connection_fails_without_retry(self):
         conn = mock.MagicMock()
         copy = conn.cursor.return_value.__enter__.return_value.copy
         copy.side_effect = psycopg.OperationalError("connection lost")
-        with self.assertRaises(ImportAbortedError):
-            export_xml.push_sources(conn, {"Watch", "iPhone"})
+        self.assertFalse(db.write_records_batch(conn, [RECORD]))
         copy.assert_called_once()
         conn.commit.assert_not_called()
 

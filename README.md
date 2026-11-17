@@ -78,7 +78,6 @@ Schema: `ingester/src/apple_health_ingester/sql/001_schema.sql`.
 | `records` | Every record and workout: `measurement, time, value, unit, device` |
 | `sleep_analysis` | Sleep stages with start and end times |
 | `workout_routes` | GPX track points with speed and distance |
-| `data_sources` | Devices and apps that produced the data |
 
 ## Install the command
 

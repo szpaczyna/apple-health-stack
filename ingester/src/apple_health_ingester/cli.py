@@ -21,7 +21,7 @@ from .db import (
 
 from .errors import ImportAbortedError
 
-from .export_xml import find_xml_file, process_health_data, push_sources
+from .export_xml import find_xml_file, process_health_data
 
 from .log import logger
 
@@ -118,8 +118,7 @@ def run_import(cfg, unpack_path):
     # Process data
     try:
         start = time.monotonic()
-        found_sources = process_health_data(conn, cfg.import_, xml_file)
-        push_sources(conn, found_sources)
+        process_health_data(conn, cfg.import_, xml_file)
         data_seconds = time.monotonic() - start
 
         start = time.monotonic()

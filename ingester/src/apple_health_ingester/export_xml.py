@@ -9,8 +9,6 @@ import zipfile
 from .config import ImportConfig
 
 from .db import (
-    SOURCES_COLUMNS,
-    write_batch,
     write_records_batch,
     write_sleep_batch,
 )
@@ -111,26 +109,20 @@ def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None
                     del elem.getparent()[0]
 
 
-def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> set[str]:
-    """
-    Process the main health data XML file and push data to PostgreSQL.
-    Returns set of all data sources found.
-    """
+def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> None:
+    """Process the main health data XML file and push data to PostgreSQL."""
     batch_size = import_cfg.batch_size
 
     logger.info(f"Processing health data from {os.path.basename(export_file)}...")
 
     records_batch = []
     sleep_batch = []
-    sources = set()
     total_records = 0
     total_sleep = 0
 
     for data_type, row in health_data_generator(import_cfg.zip_path, export_file):
         if data_type == "record":
             records_batch.append(row)
-            # row[4] is device
-            sources.add(row[4])
             if len(records_batch) >= batch_size:
                 if write_records_batch(conn, records_batch):
                     total_records += len(records_batch)
@@ -141,8 +133,6 @@ def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> set
 
         elif data_type == "sleep":
             sleep_batch.append(row)
-            # row[1] is device
-            sources.add(row[1])
             if len(sleep_batch) >= batch_size:
                 if write_sleep_batch(conn, sleep_batch):
                     total_sleep += len(sleep_batch)
@@ -163,17 +153,3 @@ def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> set
 
     logger.success(f"Total records inserted: {total_records}")
     logger.success(f"Total sleep records inserted: {total_sleep}")
-    return sources
-
-
-def push_sources(conn, sources: set[str]):
-    """Insert discovered data sources."""
-    if not sources:
-        logger.warn("No data sources to push.")
-        return
-
-    source_rows = [(s,) for s in sources if s]
-    logger.info(f"Pushing {len(source_rows)} data sources...")
-    # data_sources is truncated before each import and the rows are distinct.
-    if not write_batch(conn, "data_sources", SOURCES_COLUMNS, source_rows, "sources"):
-        raise ImportAbortedError("data sources")

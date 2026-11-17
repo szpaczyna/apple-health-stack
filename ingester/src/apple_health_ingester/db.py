@@ -58,7 +58,7 @@ def wait_for_db(db_cfg: DatabaseConfig):
 # Secondary indexes are the plain (non-unique) CREATE INDEX statements in the
 # schema file. Primary keys / unique indexes are never dropped.
 SECONDARY_INDEX_REGEX = re.compile(r"CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+(\w+)", re.IGNORECASE)
-ANALYZE_TABLES = ("records", "sleep_analysis", "workout_routes", "data_sources")
+ANALYZE_TABLES = ("records", "sleep_analysis", "workout_routes")
 
 
 def read_schema() -> str:
@@ -109,7 +109,6 @@ def truncate_tables(conn):
         cur.execute("TRUNCATE records RESTART IDENTITY;")
         cur.execute("TRUNCATE sleep_analysis RESTART IDENTITY;")
         cur.execute("TRUNCATE workout_routes RESTART IDENTITY;")
-        cur.execute("TRUNCATE data_sources;")
     conn.commit()
     logger.warn("All health tables truncated.")
 
@@ -117,7 +116,6 @@ def truncate_tables(conn):
 RECORDS_COLUMNS = ("measurement", "time", "value", "unit", "device")
 SLEEP_COLUMNS = ("time", "device", "state", "state_value", "start_time", "end_time")
 ROUTES_COLUMNS = ("workout", "time", "latitude", "longitude", "elevation", "speed", "distance")
-SOURCES_COLUMNS = ("device",)
 
 
 def write_batch(conn, table: str, columns: tuple[str, ...], rows: list[tuple], label: str) -> bool:
