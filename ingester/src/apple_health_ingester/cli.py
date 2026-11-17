@@ -21,7 +21,7 @@ from .db import (
 
 from .errors import ImportAbortedError
 
-from .export_xml import process_health_data, push_sources
+from .export_xml import find_xml_file, process_health_data, push_sources
 
 from .log import logger
 
@@ -101,6 +101,11 @@ def run_import(cfg, unpack_path):
         logger.error(f"Unable to open export zip: {unzip_err}")
         sys.exit(1)
 
+    xml_file = find_xml_file(zip_path)
+    if xml_file is None:
+        logger.error(f"No apple_health_export/export.xml found in {zip_path}, aborting before touching the database.")
+        sys.exit(1)
+
     # Connect to PostgreSQL
     wait_for_db(cfg.database)
     conn = ReconnectingConnection(cfg.database)
@@ -113,7 +118,7 @@ def run_import(cfg, unpack_path):
     # Process data
     try:
         start = time.monotonic()
-        found_sources = process_health_data(conn, cfg.import_)
+        found_sources = process_health_data(conn, cfg.import_, xml_file)
         push_sources(conn, found_sources)
         data_seconds = time.monotonic() - start
 

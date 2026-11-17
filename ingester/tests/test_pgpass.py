@@ -88,7 +88,8 @@ class CliPassfileCheckTest(unittest.TestCase):
     def run_main(self, **env):
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = os.path.join(tmp, "export.zip")
-            zipfile.ZipFile(zip_path, "w").close()
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("apple_health_export/export.xml", "")
             passfile = os.path.join(tmp, "missing")
             err = io.StringIO()
             environ = {"XDG_CONFIG_HOME": tmp, "PG_PASSFILE": passfile, "UNPACK_DIR": tmp, **env}

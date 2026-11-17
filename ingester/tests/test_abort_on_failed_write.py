@@ -13,7 +13,7 @@ TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_error=None, env=None,
-             on_extract=None):
+             on_extract=None, xml_file="apple_health_export/export.xml"):
     """Run cli.main() with the zip and database replaced by fakes; on_extract(zip, path) replaces the extraction."""
     conn = mock.MagicMock(closed=False)
     if sources_error:
@@ -26,7 +26,7 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
         "init_schema": mock.MagicMock(),
         "truncate_tables": mock.MagicMock(),
         "drop_secondary_indexes": mock.MagicMock(),
-        "find_xml_file": mock.MagicMock(return_value="apple_health_export/export.xml"),
+        "find_xml_file": mock.MagicMock(return_value=xml_file),
         "health_data_generator": mock.MagicMock(return_value=iter(data_rows)),
         "write_records_batch": mock.MagicMock(return_value=records_ok),
         "write_sleep_batch": mock.MagicMock(return_value=sleep_ok),
@@ -35,7 +35,7 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, routes_ok=True, sources_
         "build_secondary_indexes": mock.MagicMock(return_value=(0.0, 0.0)),
     }
     # Patch each name in the module that looks it up at call time.
-    export_xml_names = ("find_xml_file", "health_data_generator", "write_records_batch", "write_sleep_batch")
+    export_xml_names = ("health_data_generator", "write_records_batch", "write_sleep_batch")
     routes_names = ("write_routes_batch",)
     cli_calls = {k: v for k, v in calls.items() if k not in export_xml_names + routes_names}
     with (
@@ -80,6 +80,11 @@ class AbortOnFailedWriteTest(unittest.TestCase):
         calls = run_main([("record", RECORD), ("sleep", SLEEP)])
         self.assertEqual(calls["exit_code"], 0)
         calls["build_secondary_indexes"].assert_called_once()
+
+    def test_missing_export_xml_aborts_before_truncate(self):
+        calls = run_main([], xml_file=None)
+        self.assertEqual(calls["exit_code"], 1)
+        calls["truncate_tables"].assert_not_called()
 
 
 class RouteWriteFailureTest(unittest.TestCase):

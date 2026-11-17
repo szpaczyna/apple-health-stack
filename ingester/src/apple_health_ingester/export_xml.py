@@ -111,16 +111,12 @@ def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None
                     del elem.getparent()[0]
 
 
-def process_health_data(conn, import_cfg: ImportConfig) -> set[str]:
+def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> set[str]:
     """
     Process the main health data XML file and push data to PostgreSQL.
     Returns set of all data sources found.
     """
     batch_size = import_cfg.batch_size
-    export_file = find_xml_file(import_cfg.zip_path)
-    if not export_file:
-        logger.warn("No export XML file found, skipping...")
-        return set()
 
     logger.info(f"Processing health data from {os.path.basename(export_file)}...")
 
