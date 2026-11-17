@@ -27,6 +27,10 @@ class DashboardSqlTest(unittest.TestCase):
         for q in queries:
             self.assertIn("WHEN 'mi' THEN", q)
 
+    def test_summary_daily_buckets_use_session_timezone(self):
+        for q in raw_sql(json.loads((DASHBOARDS / "summary.json").read_text())):
+            self.assertNotRegex(q, r"\$__timeGroup(Alias)?\(time,\s*'?1d")
+
 
 if __name__ == "__main__":
     unittest.main()
