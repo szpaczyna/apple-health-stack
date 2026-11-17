@@ -15,8 +15,6 @@ class DatabaseConfig:
     dbname: str = "health"
     password: str | None = None
     passfile: str | None = None
-    max_retries: int = 5
-    retry_cooldown: int = 10
     wait_timeout: int = 120
 
 
@@ -46,8 +44,6 @@ _ENV = {
     ("database", "dbname"): "PG_DB",
     ("database", "password"): "PG_PASS",
     ("database", "passfile"): "PG_PASSFILE",
-    ("database", "max_retries"): "DB_MAX_RETRIES",
-    ("database", "retry_cooldown"): "DB_RETRY_COOLDOWN",
     ("database", "wait_timeout"): "DB_WAIT_TIMEOUT",
     ("import", "zip_path"): "ZIP_PATH",
     ("import", "batch_size"): "BATCH_SIZE",
@@ -57,8 +53,6 @@ _ENV = {
 _CLI = {"zip_path": ("import", "zip_path", "--zip")}
 _INT_RANGES = {
     "port": (1, 65535),
-    "max_retries": (1, None),
-    "retry_cooldown": (0, None),
     "wait_timeout": (1, None),
     "batch_size": (1, None),
     "gpx_workers": (1, None),
