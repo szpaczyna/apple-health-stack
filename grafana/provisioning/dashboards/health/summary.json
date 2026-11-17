@@ -419,7 +419,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS gym_time\nFROM records\nWHERE measurement = 'TraditionalStrengthTraining'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS gym_time\nFROM records\nWHERE measurement = 'TraditionalStrengthTraining'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -605,7 +605,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS walking_time\nFROM records\nWHERE measurement = 'Walking'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS walking_time\nFROM records\nWHERE measurement = 'Walking'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -699,7 +699,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  avg(value) AS speed\nFROM records\nWHERE measurement = 'WalkingSpeed'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  avg(value) AS speed\nFROM records\nWHERE measurement = 'WalkingSpeed'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -917,7 +917,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS \"Active Energy\"\nFROM records\nWHERE measurement = 'ActiveEnergyBurned'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS \"Active Energy\"\nFROM records\nWHERE measurement = 'ActiveEnergyBurned'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         },
@@ -929,7 +929,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS \"Basal Energy\"\nFROM records\nWHERE measurement = 'BasalEnergyBurned'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS \"Basal Energy\"\nFROM records\nWHERE measurement = 'BasalEnergyBurned'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "B",
           "hide": false
         }
@@ -1023,7 +1023,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(CASE unit WHEN 'km' THEN value WHEN 'm' THEN value / 1000 WHEN 'mi' THEN value * 1.609344 WHEN 'yd' THEN value * 0.0009144 END) AS distance\nFROM records\nWHERE measurement = 'DistanceCycling'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(CASE unit WHEN 'km' THEN value WHEN 'm' THEN value / 1000 WHEN 'mi' THEN value * 1.609344 WHEN 'yd' THEN value * 0.0009144 END) AS distance\nFROM records\nWHERE measurement = 'DistanceCycling'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -1129,7 +1129,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  avg(value) AS \"Walking heart rate\"\nFROM records\nWHERE measurement = 'WalkingHeartRateAverage'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  avg(value) AS \"Walking heart rate\"\nFROM records\nWHERE measurement = 'WalkingHeartRateAverage'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         },
@@ -1141,7 +1141,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  avg(value) AS \"Resting heart rate\"\nFROM records\nWHERE measurement = 'RestingHeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  avg(value) AS \"Resting heart rate\"\nFROM records\nWHERE measurement = 'RestingHeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "B",
           "hide": false
         }
@@ -1234,7 +1234,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  min(value) AS \"Lowest heart rate\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  min(value) AS \"Lowest heart rate\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "C",
           "hide": false
         },
@@ -1246,7 +1246,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  max(value) AS \"Highest heart rate\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  max(value) AS \"Highest heart rate\"\nFROM records\nWHERE measurement = 'HeartRate'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -1475,7 +1475,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS \"Low heart rate events\"\nFROM records\nWHERE measurement = 'LowHeartRateEvent'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS \"Low heart rate events\"\nFROM records\nWHERE measurement = 'LowHeartRateEvent'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "B",
           "hide": false
         },
@@ -1487,7 +1487,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS \"High heart rate events\"\nFROM records\nWHERE measurement = 'HighHeartRateEvent'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS \"High heart rate events\"\nFROM records\nWHERE measurement = 'HighHeartRateEvent'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "hide": false
         }
@@ -1580,7 +1580,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  avg(value) AS \"HRV\"\nFROM records\nWHERE measurement = 'HeartRateVariabilitySDNN'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  avg(value) AS \"HRV\"\nFROM records\nWHERE measurement = 'HeartRateVariabilitySDNN'\n  AND $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
           "refId": "B",
           "hide": false
         }
@@ -1688,7 +1688,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT\n  $__timeGroupAlias(time, 1d),\n  sum(value) AS minutes\nFROM records\nWHERE measurement = 'MindfulSession'\n  AND $__timeFilter(time)\n \nGROUP BY 1\nORDER BY 1"
+          "rawSql": "SELECT\n  date_trunc('day', time) AS time,\n  sum(value) AS minutes\nFROM records\nWHERE measurement = 'MindfulSession'\n  AND $__timeFilter(time)\n \nGROUP BY 1\nORDER BY 1"
         }
       ],
       "title": "Mindful minutes per day",

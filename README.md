@@ -49,10 +49,22 @@ The defaults suit a stack that listens on `127.0.0.1` only. To change them, copy
 | `POSTGRES_PASSWORD` | `health` | PostgreSQL superuser, used by the ingester |
 | `GRAFANA_DB_PASSWORD` | `grafana` | Read-only `grafana` database user for the datasource |
 | `GRAFANA_ADMIN_PASSWORD` | `health` | Grafana `admin` login |
+| `GRAFANA_DB_TIMEZONE` | `Etc/UTC` | Time zone of the `grafana` database user, see [Time zone](#time-zone) |
 
 PostgreSQL creates the `grafana` user on the first start of an empty volume. After you change `POSTGRES_PASSWORD` or `GRAFANA_DB_PASSWORD`, recreate the volume with `docker compose down -v`.
 
 Grafana expands `$NAME` in provisioning files, so a `$` in `GRAFANA_DB_PASSWORD` breaks the datasource login. Pick a password without `$`.
+
+## Time zone
+
+Daily panels on the summary dashboard split days at midnight in the `grafana` database user's time zone, which defaults to `Etc/UTC`. To match your local days, set `GRAFANA_DB_TIMEZONE` in `.env` to an IANA name such as `Europe/Warsaw` before the first start.
+
+The init script that applies this setting runs only on an empty data volume. On an existing install, set the time zone by hand and restart Grafana so its new database sessions pick it up:
+
+```sh
+docker compose exec postgres psql -U postgres -d health -c "ALTER ROLE grafana SET timezone = 'Europe/Warsaw'"
+docker compose restart grafana
+```
 
 ## Dashboards
 
