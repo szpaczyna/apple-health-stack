@@ -124,13 +124,23 @@ class SleepAnalysisTest(unittest.TestCase):
         })
         self.assertEqual(rows, [(parse_date(start), "Watch", "REM", 2, parse_date(start), parse_date(end))])
 
-    def test_unspecified_sleep_is_skipped(self):
+    def sleep_state(self, value):
         rows = sleep_analysis_formatter({
             "startDate": "2026-01-01 23:00:00 +0100",
             "endDate": "2026-01-01 23:30:00 +0100",
-            "value": "HKCategoryValueSleepAnalysisAsleepUnspecified",
+            "value": value,
         })
-        self.assertEqual(rows, [])
+        return [(row[2], row[3]) for row in rows]
+
+    def test_in_bed_is_not_asleep(self):
+        self.assertEqual(self.sleep_state("HKCategoryValueSleepAnalysisInBed"), [("InBed", 3)])
+
+    def test_unspecified_sleep_is_kept_as_asleep(self):
+        self.assertEqual(self.sleep_state("HKCategoryValueSleepAnalysisAsleepUnspecified"), [("Asleep", 5)])
+        self.assertEqual(self.sleep_state("HKCategoryValueSleepAnalysisAsleep"), [("Asleep", 5)])
+
+    def test_unknown_sleep_value_is_skipped(self):
+        self.assertEqual(self.sleep_state("HKCategoryValueSleepAnalysisSomethingNew"), [])
 
 
 class FormatWorkoutTest(unittest.TestCase):

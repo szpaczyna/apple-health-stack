@@ -107,14 +107,19 @@ SLEEP_STATES_LOOKUP = {
     "HKCategoryValueSleepAnalysisAsleepREM": 2,
     "HKCategoryValueSleepAnalysisInBed": 3,
     "HKCategoryValueSleepAnalysisAwake": 4,
+    "HKCategoryValueSleepAnalysisAsleepUnspecified": 5,
+    # Exports from before iOS 16 use this name for AsleepUnspecified.
+    "HKCategoryValueSleepAnalysisAsleep": 5,
 }
 
 SLEEP_STATES_SHORT = {
     "HKCategoryValueSleepAnalysisAsleepDeep": "Deep",
     "HKCategoryValueSleepAnalysisAsleepCore": "Core",
     "HKCategoryValueSleepAnalysisAsleepREM": "REM",
-    "HKCategoryValueSleepAnalysisInBed": "Asleep",
+    "HKCategoryValueSleepAnalysisInBed": "InBed",
     "HKCategoryValueSleepAnalysisAwake": "Awake",
+    "HKCategoryValueSleepAnalysisAsleepUnspecified": "Asleep",
+    "HKCategoryValueSleepAnalysisAsleep": "Asleep",
 }
 
 
@@ -130,7 +135,7 @@ def sleep_analysis_formatter(record: dict) -> list[tuple]:
     state_value = SLEEP_STATES_LOOKUP.get(raw_value, 5)
     state = SLEEP_STATES_SHORT.get(raw_value, "Unspecified")
 
-    # Skip unspecified sleep states
+    # Skip values this formatter does not know
     if state == "Unspecified":
         return []
 
