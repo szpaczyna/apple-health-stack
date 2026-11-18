@@ -3,12 +3,19 @@ import tempfile
 import unittest
 from unittest import mock
 
-from apple_health_ingester import cli, db, export_xml, routes
+from apple_health_ingester import cli, db, errors, export_xml, routes
 import psycopg
 
 RECORD = ("StepCount", None, 1.0, "count", "Watch")
 SLEEP = (None, "Watch", "Core", 1, None, None)
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def fake_write_batch(ok_by_table):
+    def write(conn, table, rows):
+        if not ok_by_table[table]:
+            raise errors.ImportAbortedError(table)
+    return write
 
 
 def run_main(data_rows, records_ok=True, sleep_ok=True, env=None,
@@ -25,8 +32,8 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, env=None,
         "drop_secondary_indexes": mock.MagicMock(),
         "find_xml_file": mock.MagicMock(return_value=xml_file),
         "health_data_generator": mock.MagicMock(return_value=iter(data_rows)),
-        "write_batch": mock.MagicMock(side_effect=lambda conn, table, rows: {
-            "records": records_ok, "sleep_analysis": sleep_ok}[table]),
+        "write_batch": mock.MagicMock(side_effect=fake_write_batch(
+            {"records": records_ok, "sleep_analysis": sleep_ok})),
         "process_workout_routes": mock.MagicMock(),
         "build_secondary_indexes": mock.MagicMock(return_value=(0.0, 0.0)),
     }
@@ -70,6 +77,11 @@ class AbortOnFailedWriteTest(unittest.TestCase):
         self.assertEqual(calls["exit_code"], 0)
         calls["build_secondary_indexes"].assert_called_once()
 
+    def test_skipped_elements_exit_1_after_commit(self):
+        calls = run_main([("record", RECORD), ("skipped", None)])
+        self.assertEqual(calls["exit_code"], 1)
+        calls["get_connection"].return_value.commit.assert_called_once()
+
     def test_missing_export_xml_aborts_before_truncate(self):
         calls = run_main([], xml_file=None)
         self.assertEqual(calls["exit_code"], 1)
@@ -79,13 +91,13 @@ class AbortOnFailedWriteTest(unittest.TestCase):
 class RouteWriteFailureTest(unittest.TestCase):
     def test_failed_route_write_stops_route_processing(self):
         parsed = [("Route A", [("route-a",)])]
-        write = mock.MagicMock(return_value=False)
+        write = mock.MagicMock(side_effect=errors.ImportAbortedError("workout_routes"))
         with mock.patch.multiple(
             routes,
             parse_workout_route=mock.MagicMock(return_value=parsed),
             write_batch=write,
         ), mock.patch.object(routes.os, "listdir", return_value=["a.gpx", "b.gpx"]):
-            with self.assertRaises(Exception):
+            with self.assertRaises(errors.ImportAbortedError):
                 routes.process_workout_routes(mock.MagicMock(), TESTS_DIR, 1)
         write.assert_called_once()
 
@@ -94,7 +106,7 @@ class RouteWriteFailureTest(unittest.TestCase):
         with mock.patch.multiple(
             routes,
             parse_workout_route=parse,
-            write_batch=mock.MagicMock(return_value=True),
+            write_batch=mock.MagicMock(),
         ), mock.patch.object(routes.os, "listdir", return_value=["a.gpx", "b.gpx"]):
             routes.process_workout_routes(mock.MagicMock(), TESTS_DIR, 1)
         self.assertEqual(parse.call_count, 2)
@@ -105,9 +117,36 @@ class WriteBatchFailureTest(unittest.TestCase):
         conn = mock.MagicMock()
         copy = conn.cursor.return_value.__enter__.return_value.copy
         copy.side_effect = psycopg.OperationalError("connection lost")
-        self.assertFalse(db.write_batch(conn, "records", [RECORD]))
+        with self.assertRaises(errors.ImportAbortedError):
+            db.write_batch(conn, "records", [RECORD])
         copy.assert_called_once()
         conn.commit.assert_not_called()
+
+
+class TransactionTest(unittest.TestCase):
+    def test_failed_copy_rolls_back_without_commit(self):
+        conn = mock.MagicMock()
+        conn.cursor.return_value.__enter__.return_value.copy.side_effect = (
+            psycopg.OperationalError("connection lost"))
+        with (
+            tempfile.TemporaryDirectory() as config_home,
+            mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": config_home, "PG_PASS": "test"}, clear=True),
+            mock.patch.multiple(
+                cli,
+                zipfile=mock.MagicMock(),
+                extract_workout_routes=mock.MagicMock(return_value=0),
+                find_xml_file=mock.MagicMock(return_value="apple_health_export/export.xml"),
+                wait_for_db=mock.MagicMock(),
+                get_connection=mock.MagicMock(return_value=conn),
+            ),
+            mock.patch.object(export_xml, "health_data_generator", return_value=iter([("record", RECORD)])),
+        ):
+            with self.assertRaises(SystemExit) as raised:
+                cli.main([])
+        self.assertEqual(raised.exception.code, 1)
+        conn.commit.assert_not_called()
+        conn.rollback.assert_called_once()
+        conn.close.assert_called_once()
 
 
 if __name__ == "__main__":

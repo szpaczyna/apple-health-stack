@@ -50,11 +50,8 @@ def format_record(record: dict[str, Any]) -> list[tuple]:
         return mindful_session_formatter(record)
     if measurement == "HeadphoneAudioExposureEvent":
         return headphone_audio_exposure_formatter(record)
-    if measurement == "SleepAnalysis":
-        # Handled separately - returns None to signal caller
-        return None
 
-    date = parse_date(record.get("startDate", "2024-01-01T01:01:01"))
+    date = parse_date(record["startDate"])
     value = parse_float_with_try(record.get("value", 1))
     unit = record.get("unit", "unit")
     device = record.get("sourceName", "unknown")
@@ -64,7 +61,7 @@ def format_record(record: dict[str, Any]) -> list[tuple]:
 
 def apple_stand_hour_formatter(record: dict) -> list[tuple]:
     """Format AppleStandHour record."""
-    date = parse_date(record.get("startDate", "2024-01-01T01:01:01"))
+    date = parse_date(record["startDate"])
     unit = record.get("unit", "unit")
     device = record.get("sourceName", "unknown")
     value = 1.0 if record.get("value") == "HKCategoryValueAppleStandHourStood" else 0.0
@@ -100,26 +97,15 @@ def _metadata_number(v: str | None) -> float | None:
     return parse_float_with_try(v.split()[0]) if v else None
 
 
-# Sleep state mappings
-SLEEP_STATES_LOOKUP = {
-    "HKCategoryValueSleepAnalysisAsleepDeep": 0,
-    "HKCategoryValueSleepAnalysisAsleepCore": 1,
-    "HKCategoryValueSleepAnalysisAsleepREM": 2,
-    "HKCategoryValueSleepAnalysisInBed": 3,
-    "HKCategoryValueSleepAnalysisAwake": 4,
-    "HKCategoryValueSleepAnalysisAsleepUnspecified": 5,
+SLEEP_STATES = {
+    "HKCategoryValueSleepAnalysisAsleepDeep": ("Deep", 0),
+    "HKCategoryValueSleepAnalysisAsleepCore": ("Core", 1),
+    "HKCategoryValueSleepAnalysisAsleepREM": ("REM", 2),
+    "HKCategoryValueSleepAnalysisInBed": ("InBed", 3),
+    "HKCategoryValueSleepAnalysisAwake": ("Awake", 4),
+    "HKCategoryValueSleepAnalysisAsleepUnspecified": ("Asleep", 5),
     # Exports from before iOS 16 use this name for AsleepUnspecified.
-    "HKCategoryValueSleepAnalysisAsleep": 5,
-}
-
-SLEEP_STATES_SHORT = {
-    "HKCategoryValueSleepAnalysisAsleepDeep": "Deep",
-    "HKCategoryValueSleepAnalysisAsleepCore": "Core",
-    "HKCategoryValueSleepAnalysisAsleepREM": "REM",
-    "HKCategoryValueSleepAnalysisInBed": "InBed",
-    "HKCategoryValueSleepAnalysisAwake": "Awake",
-    "HKCategoryValueSleepAnalysisAsleepUnspecified": "Asleep",
-    "HKCategoryValueSleepAnalysisAsleep": "Asleep",
+    "HKCategoryValueSleepAnalysisAsleep": ("Asleep", 5),
 }
 
 
@@ -131,13 +117,10 @@ def sleep_analysis_formatter(record: dict) -> list[tuple]:
     start_date = parse_date(record.get("startDate"))
     end_date = parse_date(record.get("endDate"))
     device = record.get("sourceName", "unknown")
-    raw_value = record.get("value", "")
-    state_value = SLEEP_STATES_LOOKUP.get(raw_value, 5)
-    state = SLEEP_STATES_SHORT.get(raw_value, "Unspecified")
-
-    # Skip values this formatter does not know
-    if state == "Unspecified":
+    entry = SLEEP_STATES.get(record.get("value", ""))
+    if entry is None:
         return []
+    state, state_value = entry
 
     return [(start_date, device, state, state_value, start_date, end_date)]
 
@@ -150,7 +133,7 @@ def format_workout(record: dict[str, Any]) -> tuple:
     measurement = record.get("workoutActivityType", "Workout").removeprefix(
         "HKWorkoutActivityType"
     )
-    date = parse_date(record.get("startDate", "2024-01-01T01:01:01"))
+    date = parse_date(record["startDate"])
     value = parse_float_with_try(record.get("duration", 0))
     unit = record.get("durationUnit", "unit")
     device = record.get("sourceName", "unknown")

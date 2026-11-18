@@ -24,7 +24,7 @@ ZIP_ROUTES_DIR = posixpath.join(ZIP_EXPORT_DIR, "workout-routes")
 
 def routes_dir(unpack_path: str) -> str:
     """Directory that extract_workout_routes() fills under unpack_path."""
-    return os.path.join(unpack_path, "apple_health_export", "workout-routes")
+    return os.path.join(unpack_path, *ZIP_ROUTES_DIR.split("/"))
 
 
 # --- Route processing ---
@@ -79,8 +79,7 @@ def write_workout_route(conn, tracks: list[tuple[str, list[tuple]]]) -> None:
     """Insert the parsed tracks of one GPX file."""
     for track_name, track_points in tracks:
         logger.info(f"  Route: {track_name}")
-        if not write_batch(conn, "workout_routes", track_points):
-            raise ImportAbortedError(f"route {track_name}")
+        write_batch(conn, "workout_routes", track_points)
 
 
 def resolve_gpx_workers(configured: int | None) -> int:

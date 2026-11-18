@@ -10,8 +10,6 @@ from .config import ImportConfig
 
 from .db import write_batch
 
-from .errors import ImportAbortedError
-
 from .formatters import (
     format_record,
     format_workout,
@@ -80,6 +78,8 @@ def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None
 
         for _, elem in context:
             try:
+                if elem.getparent().tag != "HealthData":
+                    continue
                 if elem.tag == "Record":
                     record_type = measurement_name(elem.get("type", "Record"))
                     if record_type == "SleepAnalysis":
@@ -92,61 +92,52 @@ def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None
                             for entry in elem.iterchildren("MetadataEntry"):
                                 record[entry.get("key")] = entry.get("value")
                         rows = format_record(record)
-                        if rows:
-                            for row in rows:
-                                yield ("record", row)
+                        for row in rows:
+                            yield ("record", row)
                 elif elem.tag == "Workout":
                     row = format_workout(dict(elem.attrib))
                     yield ("record", row)
             except Exception as e:
                 logger.error(f"Error processing element: {e}")
+                yield ("skipped", None)
             finally:
                 elem.clear()
                 while elem.getprevious() is not None:
                     del elem.getparent()[0]
 
 
-def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> None:
+def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> int:
     """Process the main health data XML file and push data to PostgreSQL."""
     batch_size = import_cfg.batch_size
 
     logger.info(f"Processing health data from {os.path.basename(export_file)}...")
 
-    records_batch = []
-    sleep_batch = []
-    total_records = 0
-    total_sleep = 0
+    tables = {"record": "records", "sleep": "sleep_analysis"}
+    labels = {"records": "records", "sleep_analysis": "sleep records"}
+    batches = {table: [] for table in labels}
+    totals = {table: 0 for table in labels}
+    skipped = 0
+
+    def flush(table: str) -> None:
+        write_batch(conn, table, batches[table])
+        totals[table] += len(batches[table])
+        batches[table] = []
 
     for data_type, row in health_data_generator(import_cfg.zip_path, export_file):
-        if data_type == "record":
-            records_batch.append(row)
-            if len(records_batch) >= batch_size:
-                if write_batch(conn, "records", records_batch):
-                    total_records += len(records_batch)
-                    logger.success(f"  Inserted {total_records} records...")
-                    records_batch = []
-                else:
-                    raise ImportAbortedError("records batch")
+        if data_type == "skipped":
+            skipped += 1
+            continue
+        table = tables[data_type]
+        batches[table].append(row)
+        if len(batches[table]) >= batch_size:
+            flush(table)
+            logger.success(f"  Inserted {totals[table]} {labels[table]}...")
 
-        elif data_type == "sleep":
-            sleep_batch.append(row)
-            if len(sleep_batch) >= batch_size:
-                if write_batch(conn, "sleep_analysis", sleep_batch):
-                    total_sleep += len(sleep_batch)
-                    logger.success(f"  Inserted {total_sleep} sleep records...")
-                    sleep_batch = []
-                else:
-                    raise ImportAbortedError("sleep batch")
+    for table in batches:
+        flush(table)
 
-    # Flush remaining
-    if records_batch:
-        if not write_batch(conn, "records", records_batch):
-            raise ImportAbortedError("records batch")
-        total_records += len(records_batch)
-    if sleep_batch:
-        if not write_batch(conn, "sleep_analysis", sleep_batch):
-            raise ImportAbortedError("sleep batch")
-        total_sleep += len(sleep_batch)
-
-    logger.success(f"Total records inserted: {total_records}")
-    logger.success(f"Total sleep records inserted: {total_sleep}")
+    logger.success(f"Total records inserted: {totals['records']}")
+    logger.success(f"Total sleep records inserted: {totals['sleep_analysis']}")
+    if skipped:
+        logger.warn(f"Skipped {skipped} elements that could not be parsed.")
+    return skipped

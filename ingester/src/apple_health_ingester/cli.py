@@ -79,7 +79,9 @@ def main(argv=None):
     else:
         unpack_location = tempfile.TemporaryDirectory(prefix="apple-health-ingester-")
     with unpack_location as unpack_path:
-        run_import(cfg, unpack_path)
+        skipped = run_import(cfg, unpack_path)
+    if skipped:
+        sys.exit(1)
 
 
 def run_import(cfg, unpack_path):
@@ -109,28 +111,27 @@ def run_import(cfg, unpack_path):
     # Connect to PostgreSQL
     wait_for_db(cfg.database)
     conn = get_connection(cfg.database)
-
-    # Initialize schema and truncate for fresh import
-    init_schema(conn)
-    truncate_tables(conn)
-    drop_secondary_indexes(conn)
-
-    # Process data
     try:
+        init_schema(conn)
+        truncate_tables(conn)
+        drop_secondary_indexes(conn)
+
         start = time.monotonic()
-        process_health_data(conn, cfg.import_, xml_file)
+        skipped = process_health_data(conn, cfg.import_, xml_file)
         data_seconds = time.monotonic() - start
 
         start = time.monotonic()
         process_workout_routes(conn, routes_dir(unpack_path), resolve_gpx_workers(cfg.import_.gpx_workers))
         routes_seconds = time.monotonic() - start
-    except ImportAbortedError as e:
-        logger.error(f"Aborting the import: failed to write {e}.")
-        conn.close()
-        sys.exit(1)
 
-    index_seconds, analyze_seconds = build_secondary_indexes(conn)
-    conn.close()
+        index_seconds, analyze_seconds = build_secondary_indexes(conn)
+        conn.commit()
+    except ImportAbortedError as e:
+        conn.rollback()
+        logger.error(f"Aborting the import: failed to write {e}.")
+        sys.exit(1)
+    finally:
+        conn.close()
 
     print_summary({
         "Data": data_seconds,
@@ -139,7 +140,11 @@ def run_import(cfg, unpack_path):
         "Analyze": analyze_seconds,
         "Total": time.monotonic() - import_start,
     })
-    logger.success("\nAll done! You can now check Grafana.")
+    if skipped:
+        logger.warn(f"\n{skipped} elements could not be parsed and were skipped; the rest of the import was committed.")
+    else:
+        logger.success("\nAll done! You can now check Grafana.")
+    return skipped
 
 
 def print_summary(durations: dict[str, float]) -> None:
@@ -147,7 +152,3 @@ def print_summary(durations: dict[str, float]) -> None:
     logger.info("\nImport summary:")
     for step, seconds in durations.items():
         logger.info(f"  {step:<8} {seconds:>8.1f}s")
-
-
-if __name__ == "__main__":
-    main()

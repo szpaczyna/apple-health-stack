@@ -34,7 +34,8 @@ class ParallelRoutesTest(unittest.TestCase):
             f.write("<gpx><trk>")
 
     def run_routes(self, write_ok: bool) -> mock.MagicMock:
-        write = mock.MagicMock(return_value=write_ok)
+        write = mock.MagicMock(
+            side_effect=None if write_ok else errors.ImportAbortedError("workout_routes"))
         with mock.patch.object(routes, "write_batch", write):
             routes.process_workout_routes(mock.MagicMock(), self.tmp.name, 2)
         return write
