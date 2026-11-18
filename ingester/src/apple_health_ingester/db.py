@@ -120,7 +120,8 @@ def write_batch(conn, table: str, rows: list[tuple]) -> None:
     """Batch-insert rows into table using COPY; raise ImportAbortedError on failure."""
     if not rows:
         return
-    copy_sql = sql.SQL("COPY {} ({}) FROM STDIN").format(
+    # FREEZE requires the table to be truncated in the same transaction, which run_import does.
+    copy_sql = sql.SQL("COPY {} ({}) FROM STDIN WITH (FREEZE)").format(
         sql.Identifier(table),
         sql.SQL(", ").join(map(sql.Identifier, COLUMNS[table])),
     )

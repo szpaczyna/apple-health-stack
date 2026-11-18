@@ -68,7 +68,7 @@ def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None
     """
     Generator that yields (type, data) tuples from health data XML.
     xml_file is the name of the XML member inside the export zip at zip_path.
-    type is 'record', 'sleep', or 'workout'.
+    type is 'record', 'sleep', or 'skipped' (data is None) for an element that could not be parsed.
     """
     with zipfile.ZipFile(zip_path) as zip_ref, zip_ref.open(xml_file) as f:
         # Skip any leading non-XML data
@@ -104,6 +104,11 @@ def health_data_generator(zip_path: str, xml_file: str) -> Generator[tuple, None
                 elem.clear()
                 while elem.getprevious() is not None:
                     del elem.getparent()[0]
+
+        # recover=True drops broken markup without raising, so the parser's error log is the only trace.
+        for error in context.error_log:
+            logger.error(f"Unparsable XML at line {error.line}: {error.message}")
+            yield ("skipped", None)
 
 
 def process_health_data(conn, import_cfg: ImportConfig, export_file: str) -> int:

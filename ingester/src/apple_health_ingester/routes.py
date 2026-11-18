@@ -87,16 +87,17 @@ def resolve_gpx_workers(configured: int | None) -> int:
     return configured or os.process_cpu_count() or 1
 
 
-def process_workout_routes(conn, routes_path: str, workers: int) -> None:
+def process_workout_routes(conn, routes_path: str, workers: int) -> int:
     """Process all GPX workout route files in routes_path.
 
     Files are parsed in worker processes; the main process writes the results
     as they complete, so file insert order is not deterministic. At most
-    2 * workers parsed files are held in memory at a time.
+    2 * workers parsed files are held in memory at a time. Returns the number of
+    files that could not be parsed.
     """
     if not os.path.isdir(routes_path):
         logger.warn("No workout routes found, skipping...")
-        return
+        return 0
 
     route_files = [
         os.path.join(routes_path, file)
@@ -105,6 +106,7 @@ def process_workout_routes(conn, routes_path: str, workers: int) -> None:
     ]
     workers = min(workers, len(route_files)) or 1
     logger.info(f"Loading workout routes ({len(route_files)} files, {workers} workers)...")
+    failed = 0
 
     if workers == 1:
         for route_file in route_files:
@@ -114,7 +116,8 @@ def process_workout_routes(conn, routes_path: str, workers: int) -> None:
                 raise
             except Exception as e:
                 logger.error(f"Failed to process route {route_file}: {e}")
-        return
+                failed += 1
+        return failed
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
         pending_files = iter(route_files)
@@ -145,6 +148,8 @@ def process_workout_routes(conn, routes_path: str, workers: int) -> None:
                     raise ImportAbortedError("routes (a GPX parser process died)") from None
                 except Exception as e:
                     logger.error(f"Failed to process route {route_file}: {e}")
+                    failed += 1
+    return failed
 
 
 def extract_workout_routes(zip_ref: zipfile.ZipFile, unpack_path: str) -> int:
