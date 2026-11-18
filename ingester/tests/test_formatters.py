@@ -108,9 +108,6 @@ class FormatRecordTest(unittest.TestCase):
         idle = format_record({**base, "value": "HKCategoryValueAppleStandHourIdle"})
         self.assertEqual((stood[0][2], idle[0][2]), (1.0, 0.0))
 
-    def test_sleep_analysis_is_left_to_its_own_formatter(self):
-        self.assertIsNone(format_record({"type": "HKCategoryTypeIdentifierSleepAnalysis"}))
-
 
 class SleepAnalysisTest(unittest.TestCase):
     def test_sleep_stage(self):

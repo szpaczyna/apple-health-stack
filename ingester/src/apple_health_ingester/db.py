@@ -10,6 +10,7 @@ import psycopg
 from psycopg import sql
 
 from .config import DatabaseConfig
+from .errors import ImportAbortedError
 from .log import logger
 from .pgpass import resolve_passfile
 
@@ -69,7 +70,6 @@ def init_schema(conn):
     """Create schema and tables if they don't exist."""
     with conn.cursor() as cur:
         cur.execute(read_schema())
-    conn.commit()
     logger.success("Schema initialized.")
 
 
@@ -79,7 +79,6 @@ def drop_secondary_indexes(conn):
     with conn.cursor() as cur:
         for name in names:
             cur.execute(f'DROP INDEX IF EXISTS "{name}";')
-    conn.commit()
     logger.warn(f"Dropped {len(names)} secondary indexes for the bulk load.")
 
 
@@ -89,7 +88,6 @@ def build_secondary_indexes(conn) -> tuple[float, float]:
     start = time.monotonic()
     with conn.cursor() as cur:
         cur.execute(read_schema())
-    conn.commit()
     index_seconds = time.monotonic() - start
     logger.success(f"Indexes built in {index_seconds:.1f}s.")
 
@@ -97,7 +95,6 @@ def build_secondary_indexes(conn) -> tuple[float, float]:
     with conn.cursor() as cur:
         for table in ANALYZE_TABLES:
             cur.execute(f"ANALYZE {table};")
-    conn.commit()
     analyze_seconds = time.monotonic() - start
     logger.success(f"Tables analyzed in {analyze_seconds:.1f}s.")
     return index_seconds, analyze_seconds
@@ -109,7 +106,6 @@ def truncate_tables(conn):
         cur.execute("TRUNCATE records RESTART IDENTITY;")
         cur.execute("TRUNCATE sleep_analysis RESTART IDENTITY;")
         cur.execute("TRUNCATE workout_routes RESTART IDENTITY;")
-    conn.commit()
     logger.warn("All health tables truncated.")
 
 
@@ -120,10 +116,10 @@ COLUMNS = {
 }
 
 
-def write_batch(conn, table: str, rows: list[tuple]) -> bool:
-    """Batch-insert rows into table using COPY in one transaction; return False on failure."""
+def write_batch(conn, table: str, rows: list[tuple]) -> None:
+    """Batch-insert rows into table using COPY; raise ImportAbortedError on failure."""
     if not rows:
-        return True
+        return
     copy_sql = sql.SQL("COPY {} ({}) FROM STDIN").format(
         sql.Identifier(table),
         sql.SQL(", ").join(map(sql.Identifier, COLUMNS[table])),
@@ -133,8 +129,6 @@ def write_batch(conn, table: str, rows: list[tuple]) -> bool:
             with cur.copy(copy_sql) as copy:
                 for row in rows:
                     copy.write_row(row)
-        conn.commit()
-        return True
     except Exception as e:
         logger.error(f"DB write failed for {table}: {e}")
-        return False
+        raise ImportAbortedError(table) from e

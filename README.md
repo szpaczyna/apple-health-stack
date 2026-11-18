@@ -77,11 +77,11 @@ docker compose restart grafana
 ## What the ingester does
 
 1. Reads `export.xml` as a stream from the zip and extracts only the `workout-routes/*.gpx` files, into a temporary directory that the ingester removes on exit. Set `import.unpack_dir` to keep them in a fixed directory instead.
-2. Waits for PostgreSQL, then creates the tables if they are missing, truncates them, and drops the secondary indexes.
+2. Waits for PostgreSQL, then opens one transaction for the whole import, creates the tables if they are missing, truncates them, and drops the secondary indexes.
 3. Loads records and sleep data with `COPY`, then parses the GPX routes in parallel.
 4. Rebuilds the indexes, runs `ANALYZE`, and prints how long each step took.
 
-The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. A failed write stops the import with exit status 1. Run the import again; each run truncates the tables and reloads the whole export.
+The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. A failed write rolls the transaction back, so the tables keep the data and indexes from the previous run, and the ingester exits with status 1. Grafana panels wait for a running import to finish before they show data. Elements that the ingester cannot parse are logged and counted; the ingester commits the rest of the import, prints the count and exits with status 1. Run the import again to retry; each run truncates the tables and reloads the whole export.
 
 Schema: `ingester/src/apple_health_ingester/sql/001_schema.sql`.
 

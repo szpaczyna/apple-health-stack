@@ -23,14 +23,21 @@ EXPORT_XML = """<?xml version="1.0" encoding="UTF-8"?>
 </HealthData>
 """
 
+HEART_RATE = """<Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch" unit="count/min"
+   startDate="2026-01-01 20:01:00 +0100" endDate="2026-01-01 20:01:00 +0100" value="61"/>"""
+
+
+def generate(xml):
+    with tempfile.TemporaryDirectory() as tmp:
+        zip_path = os.path.join(tmp, "export.zip")
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("apple_health_export/export.xml", xml)
+        return list(export_xml.health_data_generator(zip_path, "apple_health_export/export.xml"))
+
 
 class HealthDataGeneratorTest(unittest.TestCase):
     def test_metadata_reaches_the_headphone_formatter(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            zip_path = os.path.join(tmp, "export.zip")
-            with zipfile.ZipFile(zip_path, "w") as zf:
-                zf.writestr("apple_health_export/export.xml", EXPORT_XML)
-            rows = [row for _, row in export_xml.health_data_generator(zip_path, "apple_health_export/export.xml")]
+        rows = [row for _, row in generate(EXPORT_XML)]
 
         self.assertEqual(
             [(r[0], r[2], r[3]) for r in rows],
@@ -40,6 +47,23 @@ class HealthDataGeneratorTest(unittest.TestCase):
                 ("HeartRate", 61.0, "count/min"),
             ],
         )
+
+    def test_unparsable_record_yields_one_skipped_marker(self):
+        xml = """<HealthData>
+ <Record type="HKCategoryTypeIdentifierMindfulSession" sourceName="iPhone"
+   startDate="2026-01-01 20:00:00 +0100" value="HKCategoryValueNotApplicable"/>
+</HealthData>"""
+        self.assertEqual(generate(xml), [("skipped", None)])
+
+    def test_record_nested_in_correlation_is_not_yielded(self):
+        xml = f"""<HealthData>
+ {HEART_RATE}
+ <Correlation type="HKCorrelationTypeIdentifierFood"
+   startDate="2026-01-01 20:01:00 +0100" endDate="2026-01-01 20:01:00 +0100">
+  {HEART_RATE}
+ </Correlation>
+</HealthData>"""
+        self.assertEqual([kind for kind, _ in generate(xml)], ["record"])
 
 
 if __name__ == "__main__":
