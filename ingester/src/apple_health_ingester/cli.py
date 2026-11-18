@@ -123,7 +123,7 @@ def run_import(cfg, unpack_path):
         data_seconds = time.monotonic() - start
 
         start = time.monotonic()
-        process_workout_routes(conn, routes_dir(unpack_path), resolve_gpx_workers(cfg.import_.gpx_workers))
+        skipped += process_workout_routes(conn, routes_dir(unpack_path), resolve_gpx_workers(cfg.import_.gpx_workers))
         routes_seconds = time.monotonic() - start
 
         index_seconds, analyze_seconds = build_secondary_indexes(conn)
@@ -145,7 +145,7 @@ def run_import(cfg, unpack_path):
         "Total": time.monotonic() - import_start,
     })
     if skipped:
-        logger.warn(f"\n{skipped} elements could not be parsed and were skipped; the rest of the import was committed.")
+        logger.warn(f"\n{skipped} elements or route files could not be parsed and were skipped; the rest of the import was committed.")
     else:
         logger.success("\nAll done! You can now check Grafana.")
     return skipped

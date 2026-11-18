@@ -81,7 +81,7 @@ docker compose restart grafana
 3. Loads records and sleep data with `COPY`, then parses the GPX routes in parallel.
 4. Rebuilds the indexes, runs `ANALYZE`, and prints how long each step took.
 
-The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. A failed write rolls the transaction back, so the tables keep the data and indexes from the previous run, and the ingester exits with status 1. Grafana panels wait for a running import to finish before they show data. Elements that the ingester cannot parse are logged and counted; the ingester commits the rest of the import, prints the count and exits with status 1. Run the import again to retry; each run truncates the tables and reloads the whole export.
+The ingester waits up to `database.wait_timeout` seconds (120 by default) for PostgreSQL to accept connections and exits with status 1 after that. A failed write rolls the transaction back, so the tables keep the data and indexes from the previous run, and the ingester exits with status 1. Grafana panels wait for a running import to finish before they show data. Elements and GPX files that the ingester cannot parse are logged and counted; the ingester commits the rest of the import, prints the count and exits with status 1. Run the import again to retry; each run truncates the tables and reloads the whole export.
 
 Schema: `ingester/src/apple_health_ingester/sql/001_schema.sql`.
 

@@ -33,17 +33,20 @@ class ParallelRoutesTest(unittest.TestCase):
         with open(os.path.join(self.tmp.name, "broken.gpx"), "w") as f:
             f.write("<gpx><trk>")
 
-    def run_routes(self, write_ok: bool) -> mock.MagicMock:
+    def run_routes(self, write_ok: bool, workers: int = 2) -> tuple[mock.MagicMock, int]:
         write = mock.MagicMock(
             side_effect=None if write_ok else errors.ImportAbortedError("workout_routes"))
         with mock.patch.object(routes, "write_batch", write):
-            routes.process_workout_routes(mock.MagicMock(), self.tmp.name, 2)
-        return write
+            failed = routes.process_workout_routes(mock.MagicMock(), self.tmp.name, workers)
+        return write, failed
 
-    def test_all_parsed_routes_are_written_and_a_broken_file_is_skipped(self):
-        write = self.run_routes(write_ok=True)
-        names = sorted(call.args[2][0][0] for call in write.call_args_list)
-        self.assertEqual(names, [f"route-{n}" for n in range(6)])
+    def test_all_parsed_routes_are_written_and_a_broken_file_is_counted(self):
+        for workers in (1, 2):
+            with self.subTest(workers=workers):
+                write, failed = self.run_routes(write_ok=True, workers=workers)
+                names = sorted(call.args[2][0][0] for call in write.call_args_list)
+                self.assertEqual(names, [f"route-{n}" for n in range(6)])
+                self.assertEqual(failed, 1)
 
     def test_failed_write_aborts_the_pool(self):
         with self.assertRaises(errors.ImportAbortedError):

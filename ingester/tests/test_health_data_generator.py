@@ -65,6 +65,10 @@ class HealthDataGeneratorTest(unittest.TestCase):
 </HealthData>"""
         self.assertEqual([kind for kind, _ in generate(xml)], ["record"])
 
+    def test_markup_the_parser_recovers_from_counts_as_skipped(self):
+        xml = f"<HealthData>\n {HEART_RATE.replace('Watch', 'Watch & Phone')}\n</HealthData>"
+        self.assertEqual([kind for kind, _ in generate(xml)], ["record", "skipped"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,7 @@ def fake_write_batch(ok_by_table):
 
 
 def run_main(data_rows, records_ok=True, sleep_ok=True, env=None,
-             on_extract=None, xml_file="apple_health_export/export.xml"):
+             on_extract=None, xml_file="apple_health_export/export.xml", failed_routes=0):
     """Run cli.main() with the zip and database replaced by fakes; on_extract(zip, path) replaces the extraction."""
     conn = mock.MagicMock()
     calls = {
@@ -34,7 +34,7 @@ def run_main(data_rows, records_ok=True, sleep_ok=True, env=None,
         "health_data_generator": mock.MagicMock(return_value=iter(data_rows)),
         "write_batch": mock.MagicMock(side_effect=fake_write_batch(
             {"records": records_ok, "sleep_analysis": sleep_ok})),
-        "process_workout_routes": mock.MagicMock(),
+        "process_workout_routes": mock.MagicMock(return_value=failed_routes),
         "build_secondary_indexes": mock.MagicMock(return_value=(0.0, 0.0)),
     }
     # Patch each name in the module that looks it up at call time.
@@ -79,6 +79,11 @@ class AbortOnFailedWriteTest(unittest.TestCase):
 
     def test_skipped_elements_exit_1_after_commit(self):
         calls = run_main([("record", RECORD), ("skipped", None)])
+        self.assertEqual(calls["exit_code"], 1)
+        calls["get_connection"].return_value.commit.assert_called_once()
+
+    def test_failed_route_files_exit_1_after_commit(self):
+        calls = run_main([("record", RECORD)], failed_routes=1)
         self.assertEqual(calls["exit_code"], 1)
         calls["get_connection"].return_value.commit.assert_called_once()
 
