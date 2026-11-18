@@ -8,6 +8,8 @@ import tempfile
 import time
 import zipfile
 
+import psycopg
+
 from . import config, pgpass
 
 from .db import (
@@ -127,8 +129,10 @@ def run_import(cfg, unpack_path):
         index_seconds, analyze_seconds = build_secondary_indexes(conn)
         conn.commit()
     except ImportAbortedError as e:
-        conn.rollback()
         logger.error(f"Aborting the import: failed to write {e}.")
+        # A lost connection cannot roll back; the server discards the transaction anyway.
+        with contextlib.suppress(psycopg.Error):
+            conn.rollback()
         sys.exit(1)
     finally:
         conn.close()

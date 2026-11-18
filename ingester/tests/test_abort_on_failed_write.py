@@ -124,8 +124,7 @@ class WriteBatchFailureTest(unittest.TestCase):
 
 
 class TransactionTest(unittest.TestCase):
-    def test_failed_copy_rolls_back_without_commit(self):
-        conn = mock.MagicMock()
+    def run_failed_copy(self, conn):
         conn.cursor.return_value.__enter__.return_value.copy.side_effect = (
             psycopg.OperationalError("connection lost"))
         with (
@@ -140,13 +139,23 @@ class TransactionTest(unittest.TestCase):
                 get_connection=mock.MagicMock(return_value=conn),
             ),
             mock.patch.object(export_xml, "health_data_generator", return_value=iter([("record", RECORD)])),
+            mock.patch.object(cli.logger, "error") as log_error,
         ):
             with self.assertRaises(SystemExit) as raised:
                 cli.main([])
         self.assertEqual(raised.exception.code, 1)
+        log_error.assert_called_with("Aborting the import: failed to write records.")
         conn.commit.assert_not_called()
         conn.rollback.assert_called_once()
         conn.close.assert_called_once()
+
+    def test_failed_copy_rolls_back_without_commit(self):
+        self.run_failed_copy(mock.MagicMock())
+
+    def test_lost_connection_still_reports_the_abort(self):
+        conn = mock.MagicMock()
+        conn.rollback.side_effect = psycopg.OperationalError("the connection is lost")
+        self.run_failed_copy(conn)
 
 
 if __name__ == "__main__":
