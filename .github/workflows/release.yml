@@ -19,6 +19,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/szpaczyna/apple-health-stack-ingester
+  DOCKERHUB_IMAGE: szpaczyn/apple-health-stack
   # Under workflow_call, github.ref is the caller's ref, not the tag.
   TAG: ${{ inputs.tag || github.ref_name }}
 
@@ -84,10 +85,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ${{ env.IMAGE }}
+          images: |
+            ${{ env.IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
           flavor: |
             latest=false
           tags: |
@@ -135,7 +143,8 @@ jobs:
           if [[ "$TAG" == *-* ]]; then
             prerelease=(--prerelease)
           fi
-          printf -v notes 'Ingester image:\n\n    docker pull %s:%s\n' "$IMAGE" "$VERSION"
+          printf -v notes '### Docker image\n\n`docker pull %s:%s`\n`docker pull %s:%s`\n' \
+            "$IMAGE" "$VERSION" "$DOCKERHUB_IMAGE" "$VERSION"
           gh release create "$TAG" \
             --verify-tag \
             --generate-notes \
