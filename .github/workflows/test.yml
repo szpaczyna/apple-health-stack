@@ -2,8 +2,7 @@ name: Test
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  # Release calls this via workflow_call, so a push trigger would run tests twice.
   workflow_call:
     inputs:
       ref:
